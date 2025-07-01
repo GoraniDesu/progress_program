@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """UI 초기화"""
-        self.setWindowTitle("Progress Program v2.0")
+        self.setWindowTitle("Progress Program v0.3.0")
         self.setGeometry(100, 100, 1200, 800)
         
         # 메뉴바 설정

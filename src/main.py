@@ -35,7 +35,7 @@ def main():
     
     # 애플리케이션 정보 설정
     app.setApplicationName("Progress Program")
-    app.setApplicationVersion("2.0.0")
+    app.setApplicationVersion("0.3.0")
     app.setOrganizationName("Progress Team")
     
     # High DPI 지원
