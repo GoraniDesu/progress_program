@@ -11,7 +11,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from database.database import Database
 from database.models import Project, Task, Note
-from utils.helpers import format_datetime, validate_task_title
+from utils.helpers import format_datetime, validate_task_title, validate_project_title
 from ui.task_widget import TaskWidget
 
 
@@ -29,6 +29,20 @@ class ProjectWidget(QWidget):
     def init_ui(self):
         """UI 초기화"""
         layout = QVBoxLayout(self)
+        
+        # 프로젝트 액션 버튼들
+        button_layout = QHBoxLayout()
+        
+        self.edit_project_btn = QPushButton("📝 프로젝트 편집")
+        self.edit_project_btn.clicked.connect(self.edit_project)
+        button_layout.addWidget(self.edit_project_btn)
+        
+        self.delete_project_btn = QPushButton("🗑️ 프로젝트 삭제")
+        self.delete_project_btn.clicked.connect(self.delete_project)
+        button_layout.addWidget(self.delete_project_btn)
+        
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
         
         # 탭 위젯
         self.tab_widget = QTabWidget()
@@ -52,28 +66,18 @@ class ProjectWidget(QWidget):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # 버튼 영역
+        # 노트 버튼
         button_layout = QHBoxLayout()
-        
         self.add_note_btn = QPushButton("+ 노트 추가")
         self.add_note_btn.clicked.connect(self.add_note)
         button_layout.addWidget(self.add_note_btn)
-        
         button_layout.addStretch()
         layout.addLayout(button_layout)
         
-        # 노트 목록
-        self.note_table = QTableWidget()
-        self.note_table.setColumnCount(3)
-        self.note_table.setHorizontalHeaderLabels(["내용", "작성 시간", "액션"])
-        
-        # 컬럼 너비 설정
-        header = self.note_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        
-        layout.addWidget(self.note_table)
+        # 노트 내용
+        self.note_text = QTextEdit()
+        self.note_text.setPlaceholderText("여기에 프로젝트 관련 메모를 작성하세요...")
+        layout.addWidget(self.note_text)
         
         return widget
 
@@ -115,6 +119,17 @@ class ProjectWidget(QWidget):
             }
         """)
 
+    def apply_theme(self, theme_name: str):
+        """테마 적용"""
+        # 테마 매니저를 통해 스타일시트 적용
+        from utils.theme_manager import theme_manager
+        style_sheet = theme_manager.get_style_sheet(theme_name)
+        self.setStyleSheet(style_sheet)
+        
+        # 자식 위젯들에도 테마 적용
+        if hasattr(self, 'task_widget'):
+            self.task_widget.apply_theme(theme_name)
+
     def set_project(self, project: Project):
         """프로젝트 설정"""
         self.current_project = project
@@ -139,99 +154,91 @@ class ProjectWidget(QWidget):
         
         notes = self.db.get_notes_by_project(self.current_project.id)
         
-        self.note_table.setRowCount(len(notes))
-        
-        for row, note in enumerate(notes):
-            # 내용 (최대 100자)
-            content = note.content[:100] + "..." if len(note.content) > 100 else note.content
-            content_item = QTableWidgetItem(content)
-            content_item.setData(Qt.UserRole, note)
-            self.note_table.setItem(row, 0, content_item)
-            
-            # 작성 시간
-            time_item = QTableWidgetItem(format_datetime(note.created_date))
-            self.note_table.setItem(row, 1, time_item)
-            
-            # 액션 버튼들
-            action_widget = self.create_note_action_widget(note)
-            self.note_table.setCellWidget(row, 2, action_widget)
-
-    def create_note_action_widget(self, note: Note) -> QWidget:
-        """노트 액션 위젯 생성"""
-        widget = QWidget()
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 4, 4, 4)
-        
-        # 편집 버튼
-        edit_btn = QPushButton("✏️")
-        edit_btn.setToolTip("편집")
-        edit_btn.setMaximumSize(30, 30)
-        edit_btn.clicked.connect(lambda: self.edit_note(note))
-        layout.addWidget(edit_btn)
-        
-        # 삭제 버튼
-        delete_btn = QPushButton("🗑️")
-        delete_btn.setToolTip("삭제")
-        delete_btn.setMaximumSize(30, 30)
-        delete_btn.clicked.connect(lambda: self.delete_note(note))
-        layout.addWidget(delete_btn)
-        
-        return widget
+        self.note_text.setPlainText("")
+        for note in notes:
+            timestamp = format_datetime(note.created_date, "%Y-%m-%d %H:%M")
+            self.note_text.append(f"[{timestamp}]\n{note.content}\n\n")
 
     def add_note(self):
         """노트 추가"""
         if not self.current_project:
             return
         
-        # 다이얼로그로 노트 내용 입력
-        dialog = QInputDialog()
-        dialog.setInputMode(QInputDialog.TextInput)
-        dialog.setWindowTitle("새 노트")
-        dialog.setLabelText("노트 내용을 입력하세요:")
-        dialog.setTextValue("")
-        dialog.resize(400, 200)
+        text, ok = QInputDialog.getMultiLineText(
+            self, "새 노트", "노트 내용을 입력하세요:"
+        )
         
-        if dialog.exec() == QInputDialog.Accepted:
-            content = dialog.textValue().strip()
-            if content:
-                note = Note(
-                    project_id=self.current_project.id,
-                    content=content
-                )
-                self.db.create_note(note)
-                self.load_notes()
-                QMessageBox.information(self, "성공", "노트가 추가되었습니다!")
+        if ok and text.strip():
+            # 노트 생성
+            from database.models import Note
+            note = Note(
+                project_id=self.current_project.id,
+                content=text.strip()
+            )
+            self.db.create_note(note)
+            
+            # 노트 다시 로드
+            self.load_notes()
+            QMessageBox.information(self, "성공", "노트가 추가되었습니다!")
 
-    def edit_note(self, note: Note):
-        """노트 편집"""
-        dialog = QInputDialog()
-        dialog.setInputMode(QInputDialog.TextInput)
-        dialog.setWindowTitle("노트 편집")
-        dialog.setLabelText("노트 내용을 수정하세요:")
-        dialog.setTextValue(note.content)
-        dialog.resize(400, 200)
+    def edit_project(self):
+        """프로젝트 편집"""
+        if not self.current_project:
+            return
         
-        if dialog.exec() == QInputDialog.Accepted:
-            new_content = dialog.textValue().strip()
-            if new_content:
-                note.content = new_content
-                self.db.update_note(note)
-                self.load_notes()
-                QMessageBox.information(self, "성공", "노트가 수정되었습니다!")
+        title, ok = QInputDialog.getText(
+            self, "프로젝트 편집", "프로젝트 제목을 수정하세요:",
+            text=self.current_project.title
+        )
+        
+        if ok and title:
+            # 제목 검증
+            is_valid, error_msg = validate_project_title(title)
+            if not is_valid:
+                QMessageBox.warning(self, "입력 오류", error_msg)
+                return
+            
+            # 설명 입력
+            description, ok = QInputDialog.getText(
+                self, "프로젝트 편집", "프로젝트 설명을 수정하세요:",
+                text=self.current_project.description or ""
+            )
+            
+            if not ok:
+                description = self.current_project.description
+            
+            # 프로젝트 업데이트
+            self.current_project.title = title.strip()
+            self.current_project.description = description.strip() if description else ""
+            self.db.update_project(self.current_project)
+            
+            # 업데이트 시그널 발생
+            self.project_updated.emit()
+            QMessageBox.information(self, "성공", "프로젝트가 수정되었습니다!")
 
-    def delete_note(self, note: Note):
-        """노트 삭제"""
+    def delete_project(self):
+        """프로젝트 삭제"""
+        if not self.current_project:
+            return
+        
         reply = QMessageBox.question(
             self, "삭제 확인", 
-            f"정말로 이 노트를 삭제하시겠습니까?\n\n내용: {note.content[:50]}...",
+            f"정말로 '{self.current_project.title}' 프로젝트를 삭제하시겠습니까?\n"
+            "모든 할 일과 노트가 함께 삭제됩니다.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
-            self.db.delete_note(note.id)
-            self.load_notes()
-            QMessageBox.information(self, "성공", "노트가 삭제되었습니다!")
+            self.db.delete_project(self.current_project.id)
+            self.current_project = None
+            
+            # 화면 숨김
+            self.hide()
+            
+            # 업데이트 시그널 발생
+            self.project_updated.emit()
+            QMessageBox.information(self, "성공", "프로젝트가 삭제되었습니다!")
 
     def on_task_updated(self):
         """할 일 업데이트 이벤트"""

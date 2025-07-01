@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 from typing import List, Optional
 from database.models import Project, Task, Note
+from utils.helpers import parse_datetime
 
 
 class Database:
@@ -43,11 +44,20 @@ class Database:
                     title TEXT NOT NULL,
                     description TEXT,
                     completed BOOLEAN DEFAULT FALSE,
+                    order_index INTEGER DEFAULT 0,
                     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     completed_date TIMESTAMP,
                     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
                 )
             """)
+            
+            # 만약 기존 테이블에 order_index 컬럼이 없다면 추가 (마이그레이션)
+            try:
+                cursor.execute("ALTER TABLE tasks ADD COLUMN order_index INTEGER DEFAULT 0")
+            except sqlite3.OperationalError as e:
+                # 이미 컬럼이 있는 경우는 무시
+                if "duplicate column name" not in str(e):
+                    raise
             
             # 노트 테이블
             cursor.execute("""
@@ -87,8 +97,8 @@ class Database:
                     id=row[0],
                     title=row[1],
                     description=row[2],
-                    created_date=datetime.fromisoformat(row[3]) if row[3] else None,
-                    updated_date=datetime.fromisoformat(row[4]) if row[4] else None
+                    created_date=parse_datetime(row[3]),
+                    updated_date=parse_datetime(row[4])
                 )
                 projects.append(project)
             return projects
@@ -105,8 +115,8 @@ class Database:
                     id=row[0],
                     title=row[1],
                     description=row[2],
-                    created_date=datetime.fromisoformat(row[3]) if row[3] else None,
-                    updated_date=datetime.fromisoformat(row[4]) if row[4] else None
+                    created_date=parse_datetime(row[3]),
+                    updated_date=parse_datetime(row[4])
                 )
             return None
 
@@ -134,10 +144,15 @@ class Database:
         """할 일 생성"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # 새 할 일의 order_index를 프로젝트 내 가장 큰 order_index + 1로 설정
+            cursor.execute("SELECT MAX(order_index) FROM tasks WHERE project_id = ?", (task.project_id,))
+            max_order = cursor.fetchone()[0] or 0
+            task.order_index = max_order + 1
+
             cursor.execute("""
-                INSERT INTO tasks (project_id, title, description, completed, created_date)
-                VALUES (?, ?, ?, ?, ?)
-            """, (task.project_id, task.title, task.description, task.completed, task.created_date))
+                INSERT INTO tasks (project_id, title, description, completed, order_index, created_date)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (task.project_id, task.title, task.description, task.completed, task.order_index, task.created_date))
             conn.commit()
             return cursor.lastrowid
 
@@ -148,7 +163,7 @@ class Database:
             cursor.execute("""
                 SELECT * FROM tasks 
                 WHERE project_id = ? 
-                ORDER BY completed ASC, created_date ASC
+                ORDER BY completed ASC, order_index ASC, created_date ASC
             """, (project_id,))
             rows = cursor.fetchall()
             
@@ -160,8 +175,9 @@ class Database:
                     title=row[2],
                     description=row[3],
                     completed=bool(row[4]),
-                    created_date=datetime.fromisoformat(row[5]) if row[5] else None,
-                    completed_date=datetime.fromisoformat(row[6]) if row[6] else None
+                    created_date=parse_datetime(row[6]),
+                    completed_date=parse_datetime(row[7]),
+                    order_index=row[5] if row[5] is not None else 0
                 )
                 tasks.append(task)
             return tasks
@@ -205,6 +221,20 @@ class Database:
             conn.commit()
             return new_completed
 
+    def update_task_orders(self, project_id: int, task_orders: list[tuple[int, int]]):
+        """할 일의 order_index를 일괄 업데이트 (드래그 앤 드롭 순서 변경용)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            for task_id, new_order in task_orders:
+                cursor.execute("UPDATE tasks SET order_index = ? WHERE id = ? AND project_id = ?", (new_order, task_id, project_id))
+            conn.commit()
+
+        # 프로젝트의 updated_date를 갱신하여 목록 정렬이 최신화되도록 함
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE projects SET updated_date = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+            conn.commit()
+
     # 노트 CRUD
     def create_note(self, note: Note) -> int:
         """노트 생성"""
@@ -234,7 +264,7 @@ class Database:
                     id=row[0],
                     project_id=row[1],
                     content=row[2],
-                    created_date=datetime.fromisoformat(row[3]) if row[3] else None
+                    created_date=parse_datetime(row[3])
                 )
                 notes.append(note)
             return notes

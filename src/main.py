@@ -10,6 +10,9 @@ from PySide6.QtGui import QIcon
 # 프로젝트 루트를 Python 경로에 추가
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 테마 매니저 (현재 모듈에서는 직접 사용하지 않지만, 초기화가 필요한 경우 import)
+from utils.theme_manager import theme_manager
+
 try:
     # 현재 디렉토리를 모듈 경로에 추가
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +35,7 @@ def main():
     
     # 애플리케이션 정보 설정
     app.setApplicationName("Progress Program")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationVersion("2.0.0")
     app.setOrganizationName("Progress Team")
     
     # High DPI 지원

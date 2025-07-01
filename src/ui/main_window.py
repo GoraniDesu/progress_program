@@ -5,14 +5,16 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QSplitter, QLabel, QPushButton, QMessageBox,
     QListWidget, QListWidgetItem, QInputDialog,
-    QTextEdit, QProgressBar, QTabWidget, QFrame
+    QTextEdit, QProgressBar, QTabWidget, QFrame,
+    QMenuBar, QMenu, QApplication
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QAction
 from database.database import Database
 from database.models import Project
 from utils.progress import ProgressCalculator
 from utils.helpers import format_datetime, truncate_text, validate_project_title
+from utils.theme_manager import theme_manager
 from ui.project_widget import ProjectWidget
 
 
@@ -24,12 +26,16 @@ class MainWindow(QMainWindow):
         self.db = Database()
         self.current_project = None
         self.init_ui()
+        self.setup_theme()
         self.load_projects()
 
     def init_ui(self):
         """UI 초기화"""
-        self.setWindowTitle("Progress Program v1.0")
+        self.setWindowTitle("Progress Program v2.0")
         self.setGeometry(100, 100, 1200, 800)
+        
+        # 메뉴바 설정
+        self.setup_menu_bar()
         
         # 중앙 위젯
         central_widget = QWidget()
@@ -53,8 +59,7 @@ class MainWindow(QMainWindow):
         # 스플리터 비율 설정 (30:70)
         splitter.setSizes([350, 850])
         
-        # 스타일 적용
-        self.apply_styles()
+        # 초기 스타일 적용은 setup_theme에서 처리
 
     def create_project_panel(self) -> QWidget:
         """프로젝트 패널 생성"""
@@ -123,59 +128,67 @@ class MainWindow(QMainWindow):
         
         return widget
 
-    def apply_styles(self):
-        """스타일 적용"""
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #f5f5f5;
-            }
-            QFrame {
-                background-color: white;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                margin: 2px;
-            }
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-            QListWidget {
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                background-color: white;
-                selection-background-color: #e3f2fd;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #eee;
-            }
-            QListWidget::item:selected {
-                background-color: #e3f2fd;
-                color: #1976d2;
-            }
-            QProgressBar {
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                text-align: center;
-            }
-            QProgressBar::chunk {
-                background-color: #4CAF50;
-                border-radius: 4px;
-            }
-            QLabel {
-                color: #333;
-            }
-        """)
+    def setup_menu_bar(self):
+        """메뉴바 설정"""
+        menubar = self.menuBar()
+        
+        # 보기 메뉴
+        view_menu = menubar.addMenu("보기(&V)")
+        
+        # 테마 서브메뉴
+        theme_menu = view_menu.addMenu("테마(&T)")
+        
+        # 라이트 테마
+        light_action = QAction("라이트 모드(&L)", self)
+        light_action.setCheckable(True)
+        light_action.triggered.connect(lambda: self.change_theme('light'))
+        theme_menu.addAction(light_action)
+        
+        # 다크 테마
+        dark_action = QAction("다크 모드(&D)", self)
+        dark_action.setCheckable(True)
+        dark_action.triggered.connect(lambda: self.change_theme('dark'))
+        theme_menu.addAction(dark_action)
+        
+        # 테마 액션 그룹으로 관리
+        self.theme_actions = {'light': light_action, 'dark': dark_action}
+        
+        # 현재 테마에 체크 표시
+        current_theme = theme_manager.get_current_theme()
+        if current_theme in self.theme_actions:
+            self.theme_actions[current_theme].setChecked(True)
+    
+    def setup_theme(self):
+        """테마 설정"""
+        # 테마 변경 시그널 연결
+        theme_manager.theme_changed.connect(self.on_theme_changed)
+        
+        # 초기 테마 적용
+        self.apply_theme(theme_manager.get_current_theme())
+    
+    def change_theme(self, theme_name: str):
+        """테마 변경"""
+        theme_manager.set_theme(theme_name)
+    
+    def on_theme_changed(self, theme_name: str):
+        """테마 변경 이벤트 처리"""
+        # 메뉴 체크 상태 업데이트
+        for name, action in self.theme_actions.items():
+            action.setChecked(name == theme_name)
+        
+        # 테마 적용
+        self.apply_theme(theme_name)
+    
+    def apply_theme(self, theme_name: str):
+        """테마 적용"""
+        style_sheet = theme_manager.get_style_sheet(theme_name)
+        self.setStyleSheet(style_sheet)
+        # 전역 다이얼로그에도 적용
+        QApplication.instance().setStyleSheet(style_sheet)
+        
+        # 자식 위젯들에도 테마 변경 알림
+        if hasattr(self, 'project_widget'):
+            self.project_widget.apply_theme(theme_name)
 
     def load_projects(self):
         """프로젝트 목록 로드"""
@@ -248,20 +261,40 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(int(stats['progress']))
         self.progress_label.setText(f"{stats['progress']:.0f}%")
         
-        # 진척도에 따른 색상 변경
-        color = stats['progress_color']
-        self.progress_bar.setStyleSheet(f"""
-            QProgressBar::chunk {{
-                background-color: {color};
-                border-radius: 4px;
-            }}
-        """)
+        # 진척도에 따른 색상 설정
+        progress = stats['progress']
+        if progress < 25:
+            color = "#f44336"  # 빨강
+        elif progress < 50:
+            color = "#ff9800"  # 주황
+        elif progress < 75:
+            color = "#ffeb3b"  # 노랑
+        else:
+            color = "#4caf50"  # 초록
+        
+        # 현재 테마에 맞는 진척도 바 색상 설정
+        current_theme = theme_manager.get_current_theme()
+        if current_theme == 'dark':
+            self.progress_bar.setStyleSheet(f"""
+                QProgressBar::chunk {{
+                    background-color: {color};
+                    border-radius: 4px;
+                }}
+            """)
+        else:
+            self.progress_bar.setStyleSheet(f"""
+                QProgressBar::chunk {{
+                    background-color: {color};
+                    border-radius: 4px;
+                }}
+            """)
 
     def on_project_updated(self):
         """프로젝트 업데이트 이벤트"""
+        # 프로젝트 목록 새로고침
         self.load_projects()
-        if self.current_project:
-            self.update_project_info()
+        # 현재 프로젝트 정보 업데이트
+        self.update_project_info()
 
     def select_project_by_id(self, project_id: int):
         """ID로 프로젝트 선택"""
@@ -275,20 +308,18 @@ class MainWindow(QMainWindow):
 
     def show_welcome_message(self):
         """환영 메시지 표시"""
-        self.project_title_label.setText("Progress Program에 오신 것을 환영합니다! 🚀")
+        self.project_title_label.setText("프로젝트를 선택하거나 새로 만들어보세요! 🚀")
         self.progress_bar.setValue(0)
-        self.progress_label.setText("프로젝트를 선택하거나 새로 만들어보세요!")
-        self.project_widget.hide()
+        self.progress_label.setText("0%")
 
     def closeEvent(self, event):
-        """프로그램 종료 시"""
-        reply = QMessageBox.question(
-            self, '확인', '프로그램을 종료하시겠습니까?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
+        """윈도우 종료 이벤트"""
+        try:
+            # 데이터베이스 연결 정리
+            if hasattr(self, 'db'):
+                # Database 클래스에 cleanup 메서드가 있다면 호출
+                pass
             event.accept()
-        else:
-            event.ignore() 
+        except Exception as e:
+            print(f"종료 시 오류: {e}")
+            event.accept() 

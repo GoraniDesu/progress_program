@@ -1,7 +1,7 @@
 """
 유틸리티 헬퍼 함수들
 """
-from datetime import datetime
+from datetime import datetime, date, time
 from typing import Optional
 
 
@@ -144,4 +144,57 @@ def safe_string_to_int(value: str, default: int = 0) -> int:
     try:
         return int(value)
     except (ValueError, TypeError):
-        return default 
+        return default
+
+
+# ---------------------------------------------------------------------------
+# 공통 날짜 파싱 유틸리티 (SQLite 결과가 str 혹은 datetime 둘 다 가능)
+# ---------------------------------------------------------------------------
+
+
+def parse_datetime(value) -> Optional[datetime]:
+    """DB에서 가져온 열 값을 안전하게 datetime 으로 변환
+
+    SQLite 설정에 따라 같은 열이 str(ISO 문자열) 로 오거나 이미 datetime 객체로
+    올 수 있다. 또한 None 일 수도 있으므로 모든 경우를 처리한다.
+
+    Args:
+        value: DB 로부터 읽은 값
+
+    Returns:
+        datetime 또는 None
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, (date, time)):
+        # date / time 타입은 그대로 반환 or 조합할 수도 있지만 여기선 str 에서 파싱 시도
+        try:
+            return datetime.combine(value, datetime.min.time())
+        except Exception:
+            return None
+
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        try:
+            value = value.decode()
+        except Exception:
+            value = str(value)
+
+    if isinstance(value, str):
+        # ISO 형식 파싱 시도 (공백 구분도 허용)
+        try:
+            return datetime.fromisoformat(value.replace("T", " "))
+        except Exception:
+            pass
+        # SQLite 기본 포맷 "YYYY-MM-DD HH:MM:SS"
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+            try:
+                return datetime.strptime(value, fmt)
+            except Exception:
+                continue
+
+    # 변환 실패
+    return None 
