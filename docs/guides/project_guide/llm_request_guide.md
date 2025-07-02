@@ -32,7 +32,8 @@ progress_program/
 ├── data/                       # 사용자 데이터 (progress.db)
 ├── expert_opinion/             # 개발 가이드라인
 ├── project_guide/              # LLM 요청 가이드 (이 폴더)
-└── theme_settings.json         # 설정 파일
+└── config/
+    └── theme_settings.json     # 설정 파일
 ```
 
 ### 🎨 **핵심 기능 현황**

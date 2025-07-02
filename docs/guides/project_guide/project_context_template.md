@@ -26,7 +26,7 @@
 - src/database/models.py: 데이터 모델 정의
 - src/utils/progress.py: 진척도 계산 로직
 - src/utils/theme_manager.py: 테마 시스템
-- theme_settings.json: 사용자 설정 파일
+- config/theme_settings.json: 사용자 설정 파일
 ```
 
 ## 🔒 **필수 준수사항**

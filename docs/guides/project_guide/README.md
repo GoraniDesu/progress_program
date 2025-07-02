@@ -12,6 +12,7 @@
 project_guide/
 ├── README.md                           # 이 파일 (폴더 소개)
 ├── llm_request_guide.md               # LLM 개발 요청 가이드라인 (메인 문서)
+├── document_management_guide.md       # 📚 문서 관리 워크플로우 가이드 (NEW!)
 ├── project_context_template.md        # 프로젝트 컨텍스트 템플릿
 ├── request_templates.md               # 요청 유형별 템플릿
 └── best_practices.md                  # 실제 경험 기반 베스트 프랙티스
@@ -25,7 +26,8 @@ project_guide/
 - LLM에게 개발 요청 시 **일관성 부족**
 - **호환성 문제** (기존 코드와 맞지 않는 구현)
 - **프로젝트 컨텍스트 누락**으로 인한 잘못된 구현
-- **문서 업데이트 누락**
+- **문서 업데이트 누락** 및 **문서 관리 혼란**
+- **버전별 문서 정리** 타이밍 놓침
 - **품질 기준 불일치**
 
 ### ✅ **기대 효과**
@@ -34,21 +36,25 @@ project_guide/
 - **개발 생산성** 향상
 - **프로젝트 목표 준수**
 - **문서 동기화** 자동화
+- **체계적인 문서 관리** 워크플로우 확립
 
 ---
 
 ## 🚀 **빠른 시작**
 
-### 1단계: 메인 가이드 읽기
+### 1단계: 메인 가이드 읽기  
 👉 **[`llm_request_guide.md`](./llm_request_guide.md)** - 가장 중요한 문서
 
-### 2단계: 프로젝트 컨텍스트 준비
+### 2단계: 문서 관리 이해하기
+👉 **[`document_management_guide.md`](./document_management_guide.md)** - 📚 언제 어떤 문서를 업데이트해야 하는지
+
+### 3단계: 프로젝트 컨텍스트 준비
 👉 **[`project_context_template.md`](./project_context_template.md)** - 요청 시 포함할 기본 정보
 
-### 3단계: 적절한 템플릿 선택
+### 4단계: 적절한 템플릿 선택
 👉 **[`request_templates.md`](./request_templates.md)** - 상황별 요청 템플릿
 
-### 4단계: 베스트 프랙티스 확인
+### 5단계: 베스트 프랙티스 확인
 👉 **[`best_practices.md`](./best_practices.md)** - 실전 팁과 주의사항
 
 ---
@@ -75,10 +81,11 @@ project_guide/
 ### 💻 **기본 사용법**
 ```markdown
 1. llm_request_guide.md를 읽고 기본 원칙 이해
-2. project_context_template.md를 복사해서 현재 상황에 맞게 수정
-3. request_templates.md에서 적절한 템플릿 선택
-4. 템플릿을 채워서 LLM에게 요청
-5. best_practices.md의 체크리스트로 최종 검토
+2. document_management_guide.md로 문서 관리 워크플로우 파악
+3. project_context_template.md를 복사해서 현재 상황에 맞게 수정
+4. request_templates.md에서 적절한 템플릿 선택
+5. 템플릿을 채워서 LLM에게 요청
+6. best_practices.md의 체크리스트로 최종 검토
 ```
 
 ### 🎯 **고급 사용법**

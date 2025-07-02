@@ -13,7 +13,9 @@ class ThemeManager(QObject):
     
     def __init__(self):
         super().__init__()
-        self.settings_file = "theme_settings.json"
+        # 프로젝트 루트 기준으로 config 폴더의 설정 파일 경로
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        self.settings_file = os.path.join(project_root, "config", "theme_settings.json")
         self.current_theme = "light"
         self.load_settings()
     

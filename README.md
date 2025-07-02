@@ -38,6 +38,15 @@ python src/main.py
 1. `dist/ProgressProgram.exe` 파일을 원하는 위치에 복사
 2. 더블클릭으로 실행
 
+### 스크립트로 실행
+```bash
+# Windows에서 스크립트 실행
+scripts/run.bat
+
+# 환경 설정 (최초 한 번)
+scripts/setup_env.bat
+```
+
 ## 📖 사용 방법
 
 ### 1. 프로젝트 생성
@@ -67,11 +76,6 @@ python src/main.py
 ```
 progress_program/
 ├── README.md                    # 프로젝트 소개
-├── reff/                       # 참조 문서
-│   ├── README.md               # 상세 프로젝트 개요
-│   ├── user_guide.md           # 사용자 가이드
-│   ├── DEVELOPMENT_GUIDE.md    # 개발 가이드
-│   └── development_process_guide.md # AI 협업 가이드
 ├── src/                        # 소스 코드
 │   ├── main.py                 # 애플리케이션 진입점
 │   ├── database/               # 데이터베이스 관리
@@ -85,8 +89,26 @@ progress_program/
 │       ├── progress.py         # 진척도 계산
 │       ├── helpers.py          # 기타 도우미 함수
 │       └── theme_manager.py    # 🆕 테마 관리
-├── tests/                      # 테스트 코드
-└── dist/                       # 배포 파일
+├── docs/                       # 문서화 통합
+│   ├── planning/               # 개발 계획서
+│   ├── changelog/              # 변경 로그
+│   ├── expert_opinion/         # 전문가 피드백
+│   ├── guides/                 # 가이드 문서들
+│   │   ├── project_guide/      # 프로젝트 가이드
+│   │   └── reference/          # 참조 문서
+│   │       ├── README.md       # 상세 프로젝트 개요
+│   │       ├── user_guide.md   # 사용자 가이드
+│   │       ├── DEVELOPMENT_GUIDE.md # 개발 가이드
+│   │       └── development_process_guide.md # AI 협업 가이드
+│   └── README_실행방법.md       # 실행 방법 안내
+├── scripts/                    # 실행 스크립트
+│   ├── run.bat                 # 프로그램 실행
+│   └── setup_env.bat           # 환경 설정
+├── config/                     # 설정 파일
+│   └── theme_settings.json     # 테마 설정
+├── data/                       # 런타임 데이터
+├── dist/                       # 배포 파일
+└── requirements.txt             # 패키지 목록
 ```
 
 ## 📋 개발 진행 상황
@@ -106,12 +128,17 @@ progress_program/
 - [x] 👁️ **완료 항목 관리**: 완료된 할 일 숨기기/보이기 토글
 - [x] 🎯 **향상된 UI/UX**: 직관적인 인터페이스 개선
 
-### 🔄 Phase 3: 고급 기능 (향후 계획)
+### 🔄 Phase 3: 고급 기능 (v0.3.1 계획)
+- [ ] 🔧 **사용자 피드백 반영**: 아이콘 개선 및 UI 시인성 향상
+- [ ] 📅 **마감일 기능 개선**: 더블클릭 수정 및 버튼 시인성 개선
+- [ ] 🎨 **다크모드 완성**: 메뉴바 스타일 개선
+- [ ] 💾 **백업/복원 기능**: 데이터 백업 및 복원 기능 활성화
+- [ ] ⏰ **시간 표시 개선**: 일관된 시간 형식 적용
+
+### 🔄 Phase 4: 확장 기능 (향후 계획)  
 - [ ] 드래그 앤 드롭 순서 변경
-- [ ] 마감일 설정 및 알림
 - [ ] 프로젝트 색상 구분
 - [ ] 완료 시 축하 효과
-- [ ] 데이터 백업 및 내보내기
 - [ ] PyInstaller로 EXE 생성
 
 ## 🆕 v0.2.0 주요 개선사항
@@ -133,10 +160,12 @@ progress_program/
 
 ## 📚 문서
 
-- **[사용자 가이드](reff/user_guide.md)**: 프로그램 사용법 상세 안내
-- **[개발 가이드](reff/DEVELOPMENT_GUIDE.md)**: 개발 환경 설정 및 코딩 가이드
-- **[개발 프로세스 가이드](reff/development_process_guide.md)**: AI와의 효율적 협업 방법
-- **[프로젝트 상세 개요](reff/README.md)**: 상세한 프로젝트 정보
+- **[실행 방법 안내](docs/README_실행방법.md)**: 프로그램 설치 및 실행 방법
+- **[사용자 가이드](docs/guides/reference/user_guide.md)**: 프로그램 사용법 상세 안내
+- **[개발 가이드](docs/guides/reference/DEVELOPMENT_GUIDE.md)**: 개발 환경 설정 및 코딩 가이드
+- **[개발 프로세스 가이드](docs/guides/reference/development_process_guide.md)**: AI와의 효율적 협업 방법
+- **[프로젝트 상세 개요](docs/guides/reference/README.md)**: 상세한 프로젝트 정보
+- **[변경 로그](docs/changelog/CHANGELOG.md)**: 버전별 변경사항 기록
 
 ## 🔧 개발 명령어
 
