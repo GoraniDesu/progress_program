@@ -47,6 +47,7 @@ class Database:
                     order_index INTEGER DEFAULT 0,
                     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     completed_date TIMESTAMP,
+                    due_date TIMESTAMP,
                     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
                 )
             """)
@@ -54,6 +55,14 @@ class Database:
             # 만약 기존 테이블에 order_index 컬럼이 없다면 추가 (마이그레이션)
             try:
                 cursor.execute("ALTER TABLE tasks ADD COLUMN order_index INTEGER DEFAULT 0")
+            except sqlite3.OperationalError as e:
+                # 이미 컬럼이 있는 경우는 무시
+                if "duplicate column name" not in str(e):
+                    raise
+            
+            # 만약 기존 테이블에 due_date 컬럼이 없다면 추가 (마이그레이션)
+            try:
+                cursor.execute("ALTER TABLE tasks ADD COLUMN due_date TIMESTAMP")
             except sqlite3.OperationalError as e:
                 # 이미 컬럼이 있는 경우는 무시
                 if "duplicate column name" not in str(e):
@@ -150,9 +159,9 @@ class Database:
             task.order_index = max_order + 1
 
             cursor.execute("""
-                INSERT INTO tasks (project_id, title, description, completed, order_index, created_date)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (task.project_id, task.title, task.description, task.completed, task.order_index, task.created_date))
+                INSERT INTO tasks (project_id, title, description, completed, order_index, created_date, due_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (task.project_id, task.title, task.description, task.completed, task.order_index, task.created_date, task.due_date))
             conn.commit()
             return cursor.lastrowid
 
@@ -175,9 +184,10 @@ class Database:
                     title=row[2],
                     description=row[3],
                     completed=bool(row[4]),
+                    order_index=row[5] if row[5] is not None else 0,
                     created_date=parse_datetime(row[6]),
                     completed_date=parse_datetime(row[7]),
-                    order_index=row[5] if row[5] is not None else 0
+                    due_date=parse_datetime(row[8]) if len(row) > 8 and row[8] else None
                 )
                 tasks.append(task)
             return tasks
@@ -188,9 +198,9 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE tasks 
-                SET title = ?, description = ?, completed = ?, completed_date = ?
+                SET title = ?, description = ?, completed = ?, completed_date = ?, due_date = ?
                 WHERE id = ?
-            """, (task.title, task.description, task.completed, task.completed_date, task.id))
+            """, (task.title, task.description, task.completed, task.completed_date, task.due_date, task.id))
             conn.commit()
 
     def delete_task(self, task_id: int):

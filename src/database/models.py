@@ -32,6 +32,7 @@ class Task:
     created_date: Optional[datetime] = None
     completed_date: Optional[datetime] = None
     order_index: int = 0  # 할 일 순서 관리 필드 추가
+    due_date: Optional[datetime] = None  # 마감일 필드 추가
 
     def __post_init__(self):
         if self.created_date is None:
