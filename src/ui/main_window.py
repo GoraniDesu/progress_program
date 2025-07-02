@@ -9,13 +9,15 @@ from PySide6.QtWidgets import (
     QMenuBar, QMenu, QApplication
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QAction
+from PySide6.QtGui import QFont, QAction, QShortcut, QKeySequence
 from database.database import Database
 from database.models import Project
 from utils.progress import ProgressCalculator
 from utils.helpers import format_datetime, truncate_text, validate_project_title
 from utils.theme_manager import theme_manager
+# from utils.backup_manager import BackupManager
 from ui.project_widget import ProjectWidget
+# from ui.backup_dialog import BackupDialog
 
 
 class MainWindow(QMainWindow):
@@ -24,6 +26,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.db = Database()
+        # self.backup_manager = BackupManager(self.db.db_path)
         self.current_project = None
         self.init_ui()
         self.setup_theme()
@@ -132,6 +135,31 @@ class MainWindow(QMainWindow):
         """메뉴바 설정"""
         menubar = self.menuBar()
         
+        # 파일 메뉴
+        file_menu = menubar.addMenu("파일(&F)")
+        
+        # 새 프로젝트
+        new_project_action = QAction("새 프로젝트(&N)", self)
+        new_project_action.setShortcut(QKeySequence("Ctrl+N"))
+        new_project_action.triggered.connect(self.create_new_project)
+        file_menu.addAction(new_project_action)
+        
+        file_menu.addSeparator()
+        
+        # 새로고침
+        refresh_action = QAction("새로고침(&R)", self)
+        refresh_action.setShortcut(QKeySequence("F5"))
+        refresh_action.triggered.connect(self.refresh_data)
+        file_menu.addAction(refresh_action)
+        
+        file_menu.addSeparator()
+        
+        # 백업/복원
+        # backup_action = QAction("백업/복원 관리(&B)", self)
+        # backup_action.setShortcut(QKeySequence("Ctrl+B"))
+        # backup_action.triggered.connect(self.show_backup_dialog)
+        # file_menu.addAction(backup_action)
+        
         # 보기 메뉴
         view_menu = menubar.addMenu("보기(&V)")
         
@@ -157,6 +185,46 @@ class MainWindow(QMainWindow):
         current_theme = theme_manager.get_current_theme()
         if current_theme in self.theme_actions:
             self.theme_actions[current_theme].setChecked(True)
+            
+        # 추가 키보드 단축키 설정
+        self.setup_shortcuts()
+    
+    def setup_shortcuts(self):
+        """키보드 단축키 설정"""
+        # Ctrl+E: 현재 선택된 항목 편집
+        edit_shortcut = QShortcut(QKeySequence("Ctrl+E"), self)
+        edit_shortcut.activated.connect(self.edit_current_item)
+        
+        # Del: 현재 선택된 항목 삭제
+        delete_shortcut = QShortcut(QKeySequence("Delete"), self)
+        delete_shortcut.activated.connect(self.delete_current_item)
+    
+    def edit_current_item(self):
+        """현재 선택된 항목 편집"""
+        if self.current_project and hasattr(self.project_widget, 'edit_selected_task'):
+            self.project_widget.edit_selected_task()
+    
+    def delete_current_item(self):
+        """현재 선택된 항목 삭제"""
+        if self.current_project and hasattr(self.project_widget, 'delete_selected_task'):
+            self.project_widget.delete_selected_task()
+    
+    def refresh_data(self):
+        """데이터 새로고침"""
+        self.load_projects()
+        if self.current_project:
+            self.update_project_info()
+            if hasattr(self.project_widget, 'refresh'):
+                self.project_widget.refresh()
+        
+        # 상태바에 새로고침 메시지 표시 (있다면)
+        self.statusBar().showMessage("데이터를 새로고침했습니다.", 2000)
+    
+    def show_backup_dialog(self):
+        """백업/복원 다이얼로그 표시"""
+        # dialog = BackupDialog(self.backup_manager, self)
+        # dialog.exec()
+        pass
     
     def setup_theme(self):
         """테마 설정"""

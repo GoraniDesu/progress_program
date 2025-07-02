@@ -241,5 +241,20 @@ class ProjectWidget(QWidget):
             QMessageBox.information(self, "성공", "프로젝트가 삭제되었습니다!")
 
     def on_task_updated(self):
-        """할 일 업데이트 이벤트"""
-        self.project_updated.emit() 
+        """할 일 업데이트 시그널 전달"""
+        self.project_updated.emit()
+    
+    def edit_selected_task(self):
+        """선택된 할 일 편집 (키보드 단축키용)"""
+        if hasattr(self.task_widget, 'edit_selected_task'):
+            self.task_widget.edit_selected_task()
+    
+    def delete_selected_task(self):
+        """선택된 할 일 삭제 (키보드 단축키용)"""
+        if hasattr(self.task_widget, 'delete_selected_task'):
+            self.task_widget.delete_selected_task()
+    
+    def refresh(self):
+        """데이터 새로고침 (키보드 단축키용)"""
+        if self.current_project:
+            self.load_project_data() 
