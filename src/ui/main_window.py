@@ -9,15 +9,17 @@ from PySide6.QtWidgets import (
     QMenuBar, QMenu, QApplication
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QAction, QShortcut, QKeySequence
+from PySide6.QtGui import QFont, QAction, QShortcut, QKeySequence, QColor
 from database.database import Database
 from database.models import Project
 from utils.progress import ProgressCalculator
 from utils.helpers import format_datetime, truncate_text, validate_project_title
 from utils.theme_manager import theme_manager
-# from utils.backup_manager import BackupManager
+from utils.status_manager import status_manager
+from utils.animation_manager import animation_manager
+from utils.backup_manager import BackupManager
 from ui.project_widget import ProjectWidget
-# from ui.backup_dialog import BackupDialog
+from ui.backup_dialog import BackupDialog
 
 
 class MainWindow(QMainWindow):
@@ -26,7 +28,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.db = Database()
-        # self.backup_manager = BackupManager(self.db.db_path)
+        self.backup_manager = BackupManager(self.db.db_path)
         self.current_project = None
         self.init_ui()
         self.setup_theme()
@@ -34,7 +36,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """UI 초기화"""
-        self.setWindowTitle("Progress Program v0.3.0")
+        self.setWindowTitle("Progress Program v0.3.1")
         self.setGeometry(100, 100, 1200, 800)
         
         # 메뉴바 설정
@@ -155,10 +157,10 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         
         # 백업/복원
-        # backup_action = QAction("백업/복원 관리(&B)", self)
-        # backup_action.setShortcut(QKeySequence("Ctrl+B"))
-        # backup_action.triggered.connect(self.show_backup_dialog)
-        # file_menu.addAction(backup_action)
+        backup_action = QAction("백업/복원 관리(&B)", self)
+        backup_action.setShortcut(QKeySequence("Ctrl+B"))
+        backup_action.triggered.connect(self.show_backup_dialog)
+        file_menu.addAction(backup_action)
         
         # 보기 메뉴
         view_menu = menubar.addMenu("보기(&V)")
@@ -185,6 +187,18 @@ class MainWindow(QMainWindow):
         current_theme = theme_manager.get_current_theme()
         if current_theme in self.theme_actions:
             self.theme_actions[current_theme].setChecked(True)
+        
+        # 애니메이션 설정 서브메뉴
+        animation_menu = view_menu.addMenu("애니메이션(&A)")
+        
+        # 애니메이션 활성화/비활성화
+        animation_enabled_action = QAction("애니메이션 활성화(&E)", self)
+        animation_enabled_action.setCheckable(True)
+        animation_enabled_action.setChecked(theme_manager.get_animation_enabled())
+        animation_enabled_action.triggered.connect(self.toggle_animation)
+        animation_menu.addAction(animation_enabled_action)
+        
+        self.animation_enabled_action = animation_enabled_action
             
         # 추가 키보드 단축키 설정
         self.setup_shortcuts()
@@ -222,14 +236,16 @@ class MainWindow(QMainWindow):
     
     def show_backup_dialog(self):
         """백업/복원 다이얼로그 표시"""
-        # dialog = BackupDialog(self.backup_manager, self)
-        # dialog.exec()
-        pass
+        dialog = BackupDialog(self.backup_manager, self)
+        dialog.exec()
     
     def setup_theme(self):
         """테마 설정"""
         # 테마 변경 시그널 연결
         theme_manager.theme_changed.connect(self.on_theme_changed)
+        
+        # 애니메이션 설정 적용
+        animation_manager.set_animation_enabled(theme_manager.get_animation_enabled())
         
         # 초기 테마 적용
         self.apply_theme(theme_manager.get_current_theme())
@@ -237,6 +253,12 @@ class MainWindow(QMainWindow):
     def change_theme(self, theme_name: str):
         """테마 변경"""
         theme_manager.set_theme(theme_name)
+    
+    def toggle_animation(self):
+        """애니메이션 활성화/비활성화 토글"""
+        current_state = theme_manager.get_animation_enabled()
+        theme_manager.set_animation_enabled(not current_state)
+        self.animation_enabled_action.setChecked(not current_state)
     
     def on_theme_changed(self, theme_name: str):
         """테마 변경 이벤트 처리"""
@@ -269,10 +291,27 @@ class MainWindow(QMainWindow):
             progress = ProgressCalculator.calculate_progress(tasks)
             stats = ProgressCalculator.get_completion_stats(tasks)
             
-            # 리스트 아이템 생성
-            item_text = f"{project.title}\n📊 {progress:.0f}% ({stats['completed']}/{stats['total']})"
+            # 프로젝트 상태 계산
+            project_status_info = status_manager.get_project_status_summary(project, tasks)
+            status_icon = project_status_info['icon']
+            
+            # 리스트 아이템 생성 - 상태 아이콘 추가
+            status_text = f"{status_icon} " if status_icon else ""
+            item_text = f"{status_text}{project.title}\n📊 {progress:.0f}% ({stats['completed']}/{stats['total']})"
+            
+            # 상태별 추가 정보
+            if project_status_info['urgent_tasks'] > 0:
+                item_text += f" | 🚨 급함: {project_status_info['urgent_tasks']}"
+            if project_status_info['overdue_tasks'] > 0:
+                item_text += f" | ⚠️ 초과: {project_status_info['overdue_tasks']}"
+            
             item = QListWidgetItem(item_text)
             item.setData(Qt.UserRole, project)
+            
+            # 상태에 따른 색상 적용
+            if project_status_info['status'] != 'normal':
+                item.setForeground(QColor(project_status_info['color']))
+            
             self.project_list.addItem(item)
 
     def create_new_project(self):
@@ -326,7 +365,11 @@ class MainWindow(QMainWindow):
         
         # UI 업데이트
         self.project_title_label.setText(f"📋 {self.current_project.title}")
-        self.progress_bar.setValue(int(stats['progress']))
+        
+        # 진척도 바 애니메이션
+        new_progress = int(stats['progress'])
+        animation_manager.animate_progress_update(self.progress_bar, new_progress)
+        
         self.progress_label.setText(f"{stats['progress']:.0f}%")
         
         # 진척도에 따른 색상 설정

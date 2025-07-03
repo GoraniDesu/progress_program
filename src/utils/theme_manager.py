@@ -17,6 +17,8 @@ class ThemeManager(QObject):
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         self.settings_file = os.path.join(project_root, "config", "theme_settings.json")
         self.current_theme = "light"
+        self.animation_enabled = True
+        self.animation_speed = "normal"
         self.load_settings()
     
     def get_light_theme(self) -> str:
@@ -83,10 +85,30 @@ class ThemeManager(QObject):
                 selection-background-color: #e3f2fd;
                 background-color: white;
                 color: #333;
+                font-size: 15px;
             }
             QTableWidget::item {
                 padding: 8px;
                 border: none;
+                font-size: 15px;
+                background-color: white;
+                color: #333;
+            }
+            QTableWidget::item:selected {
+                background-color: #0078d4;
+                color: #ffffff;
+            }
+            QTableWidget::item:hover {
+                background-color: #e5f3ff;
+                color: #333;
+            }
+            QTableWidget::item:selected:focus {
+                background-color: #106ebe;
+                color: #ffffff;
+            }
+            QTableWidget::item:selected:!focus {
+                background-color: #cce8ff;
+                color: #333;
             }
             QHeaderView::section {
                 background-color: #f0f0f0;
@@ -94,6 +116,9 @@ class ThemeManager(QObject):
                 padding: 8px;
                 border: 1px solid #ddd;
                 font-weight: bold;
+            }
+            QHeaderView::section:hover {
+                background-color: #e8e8e8;
             }
             QTabWidget::pane {
                 border: 1px solid #ddd;
@@ -121,6 +146,43 @@ class ThemeManager(QObject):
                 padding: 8px;
                 background-color: white;
                 color: #333;
+            }
+            QMenuBar {
+                background-color: #f5f5f5;
+                color: #333;
+                border-bottom: 1px solid #ddd;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                color: #333;
+                padding: 8px 12px;
+            }
+            QMenuBar::item:selected {
+                background-color: #e3f2fd;
+                color: #1976d2;
+            }
+            QMenu {
+                background-color: white;
+                color: #333;
+                border: 1px solid #ddd;
+            }
+            QMenu::item {
+                background-color: transparent;
+                color: #333;
+                padding: 6px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #e3f2fd;
+                color: #1976d2;
+            }
+            QDialog, QMessageBox {
+                background-color: white;
+                color: #333;
+            }
+            QLineEdit, QTextEdit {
+                background-color: white;
+                color: #333;
+                border: 1px solid #ddd;
             }
         """
     
@@ -184,22 +246,39 @@ class ThemeManager(QObject):
                 background-color: transparent;
             }
             QTableWidget {
-                gridline-color: #555;
+                gridline-color: #555555;
                 selection-background-color: #404040;
-                background-color: #3c3c3c;
+                background-color: #2b2b2b;
                 color: #ffffff;
+                font-size: 15px;
             }
             QTableWidget::item {
-                padding: 8px;
-                border: none;
-                color: #ffffff;
-            }
-            QHeaderView::section {
                 background-color: #2b2b2b;
                 color: #ffffff;
                 padding: 8px;
-                border: 1px solid #555;
+                border: none;
+                font-size: 15px;
+            }
+            QTableWidget::item:selected {
+                background-color: #404040;
+                color: #ffffff;
+            }
+            QTableWidget::item:hover {
+                background-color: #353535;
+            }
+            QTableCornerButton::section {
+                background-color: #2b2b2b;
+                border: 1px solid #555555;
+            }
+            QHeaderView::section {
+                background-color: #404040;
+                color: #ffffff;
+                padding: 8px;
+                border: 1px solid #555555;
                 font-weight: bold;
+            }
+            QHeaderView::section:hover {
+                background-color: #4a4a4a;
             }
             QTabWidget::pane {
                 border: 1px solid #555;
@@ -228,6 +307,34 @@ class ThemeManager(QObject):
                 background-color: #3c3c3c;
                 color: #ffffff;
             }
+            QMenuBar {
+                background-color: #2b2b2b;
+                color: #ffffff;
+                border-bottom: 1px solid #555;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                color: #ffffff;
+                padding: 8px 12px;
+            }
+            QMenuBar::item:selected {
+                background-color: #404040;
+                color: #4CAF50;
+            }
+            QMenu {
+                background-color: #3c3c3c;
+                color: #ffffff;
+                border: 1px solid #555;
+            }
+            QMenu::item {
+                background-color: transparent;
+                color: #ffffff;
+                padding: 6px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #404040;
+                color: #4CAF50;
+            }
             QDialog, QMessageBox {
                 background-color: #3c3c3c;
                 color: #ffffff;
@@ -242,6 +349,28 @@ class ThemeManager(QObject):
     def get_current_theme(self) -> str:
         """현재 테마 반환"""
         return self.current_theme
+    
+    def get_animation_enabled(self) -> bool:
+        """애니메이션 활성화 상태 반환"""
+        return self.animation_enabled
+    
+    def set_animation_enabled(self, enabled: bool):
+        """애니메이션 활성화/비활성화 설정"""
+        self.animation_enabled = enabled
+        self.save_settings()
+        # 애니메이션 관리자에 설정 적용
+        from utils.animation_manager import animation_manager
+        animation_manager.set_animation_enabled(enabled)
+    
+    def get_animation_speed(self) -> str:
+        """애니메이션 속도 반환"""
+        return self.animation_speed
+    
+    def set_animation_speed(self, speed: str):
+        """애니메이션 속도 설정 (slow, normal, fast)"""
+        if speed in ['slow', 'normal', 'fast']:
+            self.animation_speed = speed
+            self.save_settings()
     
     def set_theme(self, theme_name: str):
         """테마 설정"""
@@ -264,7 +393,9 @@ class ThemeManager(QObject):
         """설정 저장"""
         try:
             settings = {
-                'theme': self.current_theme
+                'theme': self.current_theme,
+                'animation_enabled': self.animation_enabled,
+                'animation_speed': self.animation_speed
             }
             with open(self.settings_file, 'w', encoding='utf-8') as f:
                 json.dump(settings, f, ensure_ascii=False, indent=2)
@@ -278,9 +409,13 @@ class ThemeManager(QObject):
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
                     settings = json.load(f)
                     self.current_theme = settings.get('theme', 'light')
+                    self.animation_enabled = settings.get('animation_enabled', True)
+                    self.animation_speed = settings.get('animation_speed', 'normal')
         except Exception as e:
             print(f"테마 설정 로드 실패: {e}")
             self.current_theme = 'light'
+            self.animation_enabled = True
+            self.animation_speed = 'normal'
 
 
 # 전역 테마 매니저 인스턴스

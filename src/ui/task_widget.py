@@ -8,11 +8,14 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QDialog
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from database.database import Database
 from database.models import Project, Task
 from utils.helpers import format_datetime, validate_task_title
 from datetime import datetime, timedelta
 from utils.theme_manager import theme_manager
+from utils.status_manager import status_manager
+from utils.animation_manager import animation_manager
 from ui.due_date_dialog import DueDateDialog
 
 
@@ -73,7 +76,15 @@ class TaskWidget(QWidget):
         header.setSectionResizeMode(2, QHeaderView.Stretch)          # 할 일
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 마감일
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # 생성일
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # 액션
+        header.setSectionResizeMode(5, QHeaderView.Fixed)            # 액션
+        
+        # 액션 컬럼 너비 (아이콘 + 텍스트 표시를 위해 확대)
+        self.task_table.setColumnWidth(5, 200)
+        
+        # 테이블 행 높이 설정 (반응형 위젯에 맞춤)
+        vertical_header = self.task_table.verticalHeader()
+        vertical_header.setDefaultSectionSize(42)  # 반응형 위젯 높이에 맞춤
+        vertical_header.setMinimumSectionSize(30)  # 최소 행 높이
         
         layout.addWidget(self.task_table)
 
@@ -106,7 +117,7 @@ class TaskWidget(QWidget):
             # 완료 체크박스
             checkbox = QCheckBox()
             checkbox.setChecked(task.completed)
-            checkbox.stateChanged.connect(lambda state, t=task: self.toggle_task_completion(t))
+            checkbox.stateChanged.connect(lambda state, t=task, cb=checkbox: self.toggle_task_completion(t, cb))
             checkbox_widget = QWidget()
             checkbox_layout = QHBoxLayout(checkbox_widget)
             checkbox_layout.addWidget(checkbox)
@@ -114,71 +125,198 @@ class TaskWidget(QWidget):
             checkbox_layout.setContentsMargins(0, 0, 0, 0)
             self.task_table.setCellWidget(row, 1, checkbox_widget)
             
-            # 할 일 제목
-            title_item = QTableWidgetItem(task.title)
+            # 할 일 제목 - 상태 표시 추가
+            task_status_info = status_manager.get_task_status_summary(task)
+            status_icon = task_status_info['icon']
+            title_text = f"{status_icon} {task.title}" if status_icon else task.title
+            
+            title_item = QTableWidgetItem(title_text)
             title_item.setData(Qt.UserRole, task)
+            
+            # 상태에 따른 색상 적용
+            if task_status_info['status'] != 'normal':
+                title_item.setForeground(QColor(task_status_info['color']))
+            
             if task.completed:
                 title_item.setFlags(title_item.flags() & ~Qt.ItemIsEditable)
                 title_item.setBackground(Qt.lightGray)
             self.task_table.setItem(row, 2, title_item)
             
-            # 마감일
+            # 마감일 - 상태 기반 표시
             due_date_text = ""
             if task.due_date:
                 due_date_text = format_datetime(task.due_date, "%m/%d %H:%M")
-                # 마감일이 지났는지 확인
-                if task.due_date < datetime.now() and not task.completed:
+                
+                # 상태에 따른 아이콘 추가
+                if task_status_info['status'] == 'overdue':
                     due_date_text = f"⚠️ {due_date_text}"
-                elif task.due_date < datetime.now() + timedelta(days=1) and not task.completed:
+                elif task_status_info['status'] == 'urgent':
                     due_date_text = f"🔥 {due_date_text}"
             else:
                 due_date_text = "-"
             
             due_date_item = QTableWidgetItem(due_date_text)
             due_date_item.setFlags(due_date_item.flags() & ~Qt.ItemIsEditable)
-            if task.due_date and task.due_date < datetime.now() and not task.completed:
-                # 마감일이 지난 경우 빨간색 배경
-                due_date_item.setBackground(Qt.red)
-                due_date_item.setForeground(Qt.white)
-            elif task.due_date and task.due_date < datetime.now() + timedelta(days=1) and not task.completed:
-                # 마감일이 임박한 경우 노란색 배경
-                due_date_item.setBackground(Qt.yellow)
+            
+            # 상태에 따른 배경색 적용
+            if task_status_info['status'] == 'overdue':
+                due_date_item.setBackground(QColor("#ff4757"))
+                due_date_item.setForeground(QColor("#ffffff"))
+            elif task_status_info['status'] == 'urgent':
+                due_date_item.setBackground(QColor("#ff6b6b"))
+                due_date_item.setForeground(QColor("#ffffff"))
+            elif task_status_info['status'] == 'completed':
+                due_date_item.setBackground(QColor("#2ed573"))
+                due_date_item.setForeground(QColor("#ffffff"))
+            
             self.task_table.setItem(row, 3, due_date_item)
             
             # 생성일
             date_item = QTableWidgetItem(format_datetime(task.created_date, "%m/%d %H:%M"))
             self.task_table.setItem(row, 4, date_item)
             
-            # 액션 버튼들
+            # 액션 버튼들 (완벽한 수직 중앙 정렬을 위한 wrapper 적용)
             action_widget = self.create_task_action_widget(task)
-            self.task_table.setCellWidget(row, 5, action_widget)
+            
+            # 수직 중앙 정렬을 강제하는 wrapper 위젯
+            wrapper = QWidget()
+            wrapper_layout = QVBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(0, 0, 0, 0)
+            wrapper_layout.setSpacing(0)
+            wrapper_layout.addStretch()  # 위쪽 여백
+            wrapper_layout.addWidget(action_widget)
+            wrapper_layout.addStretch()  # 아래쪽 여백
+            
+            self.task_table.setCellWidget(row, 5, wrapper)
 
     def create_task_action_widget(self, task: Task) -> QWidget:
-        """할 일 액션 위젯 생성"""
+        """할 일 액션 위젯 생성 (wrapper와 함께 완벽한 중앙 정렬)"""
+        from PySide6.QtWidgets import QSizePolicy
+        
+        # 액션 버튼들을 담는 위젯 (wrapper에 의해 중앙 정렬됨)
         widget = QWidget()
+        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        widget.setFixedHeight(20)  # 적절한 버튼 높이
+        
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setContentsMargins(5, 1, 5, 1)  # 좌우 여백, 최소 상하 여백
+        layout.setSpacing(3)  # 버튼 간격
+        layout.setAlignment(Qt.AlignCenter)
         
-        # 마감일 설정 버튼
-        due_date_btn = QPushButton("📅")
-        due_date_btn.setToolTip("마감일 설정")
-        due_date_btn.setMaximumSize(30, 30)
-        due_date_btn.clicked.connect(lambda: self.set_due_date(task))
-        layout.addWidget(due_date_btn)
+        # 현재 테마 확인
+        current_theme = theme_manager.get_current_theme()
         
-        # 편집 버튼
-        edit_btn = QPushButton("✏️")
-        edit_btn.setToolTip("편집")
-        edit_btn.setMaximumSize(30, 30)
-        edit_btn.clicked.connect(lambda: self.edit_task(task))
-        layout.addWidget(edit_btn)
+        # 반응형 버튼 스타일 (전문가 권장: 호버 효과 개선)
+        if current_theme == 'dark':
+            button_style = """
+                QPushButton {
+                    font-family: 'Segoe UI', '맑은 고딕';
+                    font-size: 12px;
+                    font-weight: normal;
+                    border: 1px solid #666;
+                    border-radius: 3px;
+                    background-color: #4a4a4a;
+                    color: #ffffff;
+                    text-align: center;
+                    padding: 2px 4px;
+                }
+                QPushButton:hover {
+                    background-color: #5a5a5a;
+                    border-color: #777;
+                }
+                QPushButton:pressed {
+                    background-color: #3a3a3a;
+                }
+            """
+            delete_button_style = """
+                QPushButton {
+                    font-family: 'Segoe UI', '맑은 고딕';
+                    font-size: 12px;
+                    font-weight: normal;
+                    border: 1px solid #666;
+                    border-radius: 3px;
+                    background-color: #4a4a4a;
+                    color: #ffffff;
+                    text-align: center;
+                    padding: 2px 4px;
+                }
+                QPushButton:hover {
+                    background-color: #664444;
+                    border-color: #777;
+                }
+                QPushButton:pressed {
+                    background-color: #553333;
+                }
+            """
+        else:
+            # 라이트 테마: 밝은 색상으로 일관성 유지
+            button_style = """
+                QPushButton {
+                    font-family: 'Segoe UI', '맑은 고딕';
+                    font-size: 12px;
+                    font-weight: normal;
+                    border: 1px solid #d0d0d0;
+                    border-radius: 3px;
+                    background-color: #ffffff;
+                    color: #333333;
+                    text-align: center;
+                    padding: 2px 4px;
+                }
+                QPushButton:hover {
+                    background-color: #f0f8ff;
+                    border-color: #0078d4;
+                    color: #0078d4;
+                }
+                QPushButton:pressed {
+                    background-color: #e6f3ff;
+                    border-color: #106ebe;
+                    color: #106ebe;
+                }
+            """
+            delete_button_style = """
+                QPushButton {
+                    font-family: 'Segoe UI', '맑은 고딕';
+                    font-size: 12px;
+                    font-weight: normal;
+                    border: 1px solid #d0d0d0;
+                    border-radius: 3px;
+                    background-color: #ffffff;
+                    color: #333333;
+                    text-align: center;
+                    padding: 2px 4px;
+                }
+                QPushButton:hover {
+                    background-color: #fff5f5;
+                    border-color: #dc3545;
+                    color: #dc3545;
+                }
+                QPushButton:pressed {
+                    background-color: #ffe6e6;
+                    border-color: #c82333;
+                    color: #c82333;
+                }
+            """
         
-        # 삭제 버튼
-        delete_btn = QPushButton("🗑️")
-        delete_btn.setToolTip("삭제")
-        delete_btn.setMaximumSize(30, 30)
-        delete_btn.clicked.connect(lambda: self.delete_task(task))
-        layout.addWidget(delete_btn)
+        # 버튼 생성 (전문가 권장: 아이콘 + 텍스트 조합으로 직관성 향상)
+        buttons_data = [
+            ("📅 날짜", lambda: self.set_due_date(task), button_style, "마감일 설정/수정"),
+            ("✏️ 편집", lambda: self.edit_task(task), button_style, "할 일 편집"),
+            ("🗑️ 삭제", lambda: self.delete_task(task), delete_button_style, "할 일 삭제")
+        ]
+        
+        for text, handler, style, tooltip in buttons_data:
+            btn = QPushButton(text)
+            btn.setToolTip(tooltip)
+            
+            # 🔥 핵심 수정: 반응형 크기 정책 적용
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn.setMaximumHeight(18)  # wrapper 높이에 맞춤
+            btn.setMinimumHeight(16)
+            btn.setMinimumWidth(28)  # 최소 너비
+            
+            btn.setStyleSheet(style)
+            btn.clicked.connect(handler)
+            layout.addWidget(btn)
         
         return widget
 
@@ -249,14 +387,27 @@ class TaskWidget(QWidget):
         if self.show_completed:
             self.toggle_completed_btn.setText("✅ 완료된 할 일 숨기기")
         else:
-            self.toggle_completed_btn.setText("👁️ 완료된 할 일 보이기")
+            self.toggle_completed_btn.setText("🔍 완료된 할 일 보이기")
         
         self.load_tasks()
     
     def start_inline_editing(self, item: QTableWidgetItem):
         """인라인 편집 시작"""
-        # 할 일 제목 컬럼(인덱스 2)에서만 편집 허용
-        if item.column() != 2:  # '할 일' 컬럼 인덱스
+        column = item.column()
+        
+        # 마감일 컬럼(인덱스 3) 더블클릭 시 마감일 다이얼로그 호출
+        if column == 3:  # '마감일' 컬럼 인덱스
+            # Task 객체 찾기 (순서 컬럼에서 가져오기)
+            row = item.row()
+            order_item = self.task_table.item(row, 0)
+            if order_item:
+                task = order_item.data(Qt.UserRole)
+                if task:
+                    self.set_due_date(task)
+            return
+        
+        # 할 일 제목 컬럼(인덱스 2)에서만 텍스트 편집 허용
+        if column != 2:  # '할 일' 컬럼 인덱스
             return
         
         # 완료된 할 일은 편집 불가
@@ -327,8 +478,11 @@ class TaskWidget(QWidget):
             self.task_updated.emit()
             QMessageBox.information(self, "성공", "할 일이 삭제되었습니다!")
 
-    def toggle_task_completion(self, task: Task):
+    def toggle_task_completion(self, task: Task, checkbox: QCheckBox):
         """할 일 완료 상태 토글"""
+        # 체크박스 애니메이션 실행
+        animation_manager.animate_task_completion(checkbox)
+        
         # 완료 상태 변경
         task.completed = not task.completed
         if task.completed:
@@ -344,6 +498,9 @@ class TaskWidget(QWidget):
         """테마 적용"""
         style_sheet = theme_manager.get_style_sheet(theme_name)
         self.setStyleSheet(style_sheet)
+        # 테마 변경 시 액션 버튼들도 새로 적용되도록 할 일 목록 재로드
+        if self.current_project:
+            self.load_tasks()
     
     def edit_selected_task(self):
         """선택된 할 일 편집 (키보드 단축키용)"""

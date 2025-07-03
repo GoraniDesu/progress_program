@@ -7,6 +7,7 @@ import sqlite3
 from datetime import datetime
 from typing import Tuple, Optional
 from pathlib import Path
+from utils.helpers import format_datetime
 
 
 class BackupManager:
@@ -127,7 +128,7 @@ class BackupManager:
                     
                     backup_files.append((
                         filename,
-                        created_time.strftime("%Y-%m-%d %H:%M:%S"),
+                        format_datetime(created_time),
                         self._format_file_size(file_size)
                     ))
             

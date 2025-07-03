@@ -1,10 +1,25 @@
 @echo off
-echo Progress Program을 시작합니다...
+echo Starting Progress Program v0.3.2...
 echo.
 
-REM conda 환경 활성화 및 프로그램 실행
-call conda run -n progress_env python ../src/main.py
+REM Change to project root directory
+cd /d "%~dp0.."
+
+REM Check Python environment
+echo Checking Python environment...
+python --version
+if %errorlevel% neq 0 (
+    echo Error: Python is not installed or not in PATH
+    echo Please install Python 3.8 or higher
+    pause
+    exit /b 1
+)
+echo.
+
+REM Run the program
+echo Starting the application...
+python src/main.py
 
 echo.
-echo 프로그램이 종료되었습니다. 아무 키나 누르세요...
+echo Program terminated. Press any key to exit...
 pause > nul 
