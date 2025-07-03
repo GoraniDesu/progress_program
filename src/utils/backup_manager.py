@@ -46,11 +46,19 @@ class BackupManager:
             if custom_name:
                 # 사용자 지정 이름에서 특수문자 제거
                 safe_name = "".join(c for c in custom_name if c.isalnum() or c in (' ', '-', '_')).strip()
-                backup_filename = f"{safe_name}_{timestamp}.db"
+                prefix = safe_name or "temporary"
             else:
-                backup_filename = f"backup_{timestamp}.db"
-            
+                prefix = "temporary"
+
+            backup_filename = f"{prefix}_{timestamp}.db"
             backup_path = os.path.join(self.backup_dir, backup_filename)
+
+            # 중복 파일명 존재 시 넘버링 (temporary_20240101_120000 (1).db ...)
+            counter = 1
+            while os.path.exists(backup_path):
+                backup_filename = f"{prefix}_{timestamp} ({counter}).db"
+                backup_path = os.path.join(self.backup_dir, backup_filename)
+                counter += 1
             
             # 데이터베이스 무결성 검사
             if not self._verify_database_integrity(self.db_path):

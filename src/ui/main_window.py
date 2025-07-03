@@ -73,8 +73,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         
         # 제목
-        title = QLabel("📋 프로젝트 목록")
-        title.setFont(QFont("Arial", 12, QFont.Bold))
+        title = QLabel("📂 프로젝트 목록")
+        title.setFont(QFont("Arial", 20, QFont.Bold))
         layout.addWidget(title)
         
         # 새 프로젝트 버튼
@@ -113,12 +113,12 @@ class MainWindow(QMainWindow):
         """프로젝트 정보 위젯 생성"""
         widget = QFrame()
         widget.setFrameStyle(QFrame.StyledPanel)
-        widget.setMaximumHeight(100)
         layout = QVBoxLayout(widget)
         
         # 프로젝트 제목
         self.project_title_label = QLabel()
         self.project_title_label.setFont(QFont("Arial", 14, QFont.Bold))
+        self.project_title_label.setStyleSheet("padding-left: 8px; padding-top: 4px; padding-bottom: 4px;")
         layout.addWidget(self.project_title_label)
         
         # 진척도 바
@@ -364,7 +364,7 @@ class MainWindow(QMainWindow):
         stats = ProgressCalculator.get_completion_stats(tasks)
         
         # UI 업데이트
-        self.project_title_label.setText(f"📋 {self.current_project.title}")
+        self.project_title_label.setText(f"📂 {self.current_project.title}")
         
         # 진척도 바 애니메이션
         new_progress = int(stats['progress'])

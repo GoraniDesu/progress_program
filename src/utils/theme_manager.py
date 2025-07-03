@@ -71,6 +71,7 @@ class ThemeManager(QObject):
                 text-align: center;
                 background-color: #f0f0f0;
                 color: #333;
+                min-height: 30px;
             }
             QProgressBar::chunk {
                 background-color: #4CAF50;
@@ -184,6 +185,13 @@ class ThemeManager(QObject):
                 color: #333;
                 border: 1px solid #ddd;
             }
+            QSplitter::handle {
+                background-color: #e0e0e0;
+                width: 4px;
+            }
+            QSplitter::handle:hover {
+                background-color: #4CAF50;
+            }
         """
     
     def get_dark_theme(self) -> str:
@@ -236,6 +244,7 @@ class ThemeManager(QObject):
                 text-align: center;
                 background-color: #2b2b2b;
                 color: #ffffff;
+                min-height: 30px;
             }
             QProgressBar::chunk {
                 background-color: #4CAF50;
@@ -343,6 +352,13 @@ class ThemeManager(QObject):
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border: 1px solid #555;
+            }
+            QSplitter::handle {
+                background-color: #555555;
+                width: 4px;
+            }
+            QSplitter::handle:hover {
+                background-color: #4CAF50;
             }
         """
     
