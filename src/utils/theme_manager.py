@@ -86,7 +86,7 @@ class ThemeManager(QObject):
                 selection-background-color: #e3f2fd;
                 background-color: white;
                 color: #333;
-                font-size: 15px;
+                font-size: 14px;
             }
             QTableWidget::item {
                 padding: 8px;
@@ -259,7 +259,7 @@ class ThemeManager(QObject):
                 selection-background-color: #404040;
                 background-color: #2b2b2b;
                 color: #ffffff;
-                font-size: 15px;
+                font-size: 14px;
             }
             QTableWidget::item {
                 background-color: #2b2b2b;

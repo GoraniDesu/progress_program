@@ -76,8 +76,14 @@ class ProjectWidget(QWidget):
         
         # 노트 내용
         self.note_text = QTextEdit()
-        self.note_text.setPlaceholderText("예시)\n• 프로젝트 목표를 서술하세요\n• 필요한 리소스 체크\n• 예상 완료일: YYYY-MM-DD")
+        self.note_text.setPlaceholderText("""여기에 프로젝트 관련 메모를 작성하세요 ...
+
+예시)
+• 갑자기 떠오른 생각
+• 기억해야 할 일
+• 느낀점 등등""")
         layout.addWidget(self.note_text)
+        self.note_text.setStyleSheet("font-size: 15px;")
         
         return widget
 

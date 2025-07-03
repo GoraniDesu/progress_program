@@ -199,6 +199,39 @@ class AnimationManager:
         
         return animation_group
     
+    def animate_fluid_progress(self, progress_bar: QProgressBar, static_value: int) -> Optional[QPropertyAnimation]:
+        """
+        진척도 바가 현재 값 주변에서 유동적으로 움직이는 애니메이션
+        (예: 40%에서 39%~41% 사이를 반복)
+        """
+        if not self.animation_enabled:
+            return None
+
+        # 기존에 진행 중인 유동 애니메이션이 있다면 중지
+        for anim in self.active_animations[:]:
+            if isinstance(anim, QPropertyAnimation) and anim.targetObject() == progress_bar and anim.propertyName() == b"value" and anim.loopCount() == -1:
+                anim.stop()
+                self.active_animations.remove(anim)
+
+        # 미세하게 움직일 범위 설정 (예: ±1%)
+        epsilon = 1
+        start_value = max(0, static_value - epsilon)
+        end_value = min(100, static_value + epsilon)
+
+        fluid_animation = QPropertyAnimation(progress_bar, b"value")
+        fluid_animation.setDuration(1500) # 한 번 왕복하는 시간 (밀리초)
+        fluid_animation.setLoopCount(-1)  # 무한 반복
+        fluid_animation.setEasingCurve(QEasingCurve.InOutSine) # 부드러운 흐름
+
+        fluid_animation.setStartValue(start_value)
+        fluid_animation.setKeyValueAt(0.5, end_value) # 중간 지점에서 최대값
+        fluid_animation.setEndValue(start_value) # 다시 시작 값으로 돌아옴
+
+        self.active_animations.append(fluid_animation)
+        fluid_animation.start()
+
+        return fluid_animation
+    
     def get_performance_info(self) -> dict:
         """성능 정보 반환"""
         current_time = time.time()

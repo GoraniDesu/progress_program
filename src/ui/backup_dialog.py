@@ -141,16 +141,10 @@ class BackupDialog(QDialog):
         else:
             self.backup_list.setRowCount(len(backups))
             
-            for row, (filename, created_time, file_size) in enumerate(backups):
-                # 사용자 지정 이름 추출 (파일명에서 타임스탬프 제거)
-                if "_" in filename:
-                    user_name = filename.split("_")[0]
-                else:
-                    user_name = filename.replace(".db", "")
-                
+            for row, (display_name, created_time, file_size, actual_filename) in enumerate(backups):
                 # 백업 이름 (사용자 지정 이름)
-                name_item = QTableWidgetItem(user_name)
-                name_item.setData(Qt.UserRole, filename)  # 실제 파일명 저장
+                name_item = QTableWidgetItem(display_name)
+                name_item.setData(Qt.UserRole, actual_filename)  # 실제 파일명 저장
                 name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
                 self.backup_list.setItem(row, 0, name_item)
                 

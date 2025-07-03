@@ -1,5 +1,5 @@
 {
   "theme": "dark",
-  "animation_enabled": true,
+  "animation_enabled": false,
   "animation_speed": "normal"
 }

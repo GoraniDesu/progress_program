@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """UI 초기화"""
-        self.setWindowTitle("Progress Program v0.3.1")
+        self.setWindowTitle("Progress Program v0.5")
         self.setGeometry(100, 100, 1200, 800)
         
         # 메뉴바 설정
@@ -73,8 +73,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         
         # 제목
-        title = QLabel("📂 프로젝트 목록")
-        title.setFont(QFont("Arial", 20, QFont.Bold))
+        title = QLabel(" 📂 프로젝트 목록")
+        title.setFont(QFont("맑은 고딕", 18, QFont.Bold))
         layout.addWidget(title)
         
         # 새 프로젝트 버튼
@@ -117,8 +117,8 @@ class MainWindow(QMainWindow):
         
         # 프로젝트 제목
         self.project_title_label = QLabel()
-        self.project_title_label.setFont(QFont("Arial", 14, QFont.Bold))
-        self.project_title_label.setStyleSheet("padding-left: 8px; padding-top: 4px; padding-bottom: 4px;")
+        self.project_title_label.setFont(QFont("맑은 고딕", 22, QFont.Bold))
+        self.project_title_label.setStyleSheet("padding-left: 6px; padding-top: 6px; padding-bottom: 6px;")
         layout.addWidget(self.project_title_label)
         
         # 진척도 바
@@ -348,6 +348,8 @@ class MainWindow(QMainWindow):
 
     def on_project_selected(self, item: QListWidgetItem):
         """프로젝트 선택 이벤트"""
+        # 기존 유동 애니메이션 중지
+        animation_manager.stop_all_animations()
         project = item.data(Qt.UserRole)
         if project:
             self.current_project = project
@@ -364,12 +366,16 @@ class MainWindow(QMainWindow):
         stats = ProgressCalculator.get_completion_stats(tasks)
         
         # UI 업데이트
-        self.project_title_label.setText(f"📂 {self.current_project.title}")
+        self.project_title_label.setText(f"⭐ {self.current_project.title} ⭐")
         
         # 진척도 바 애니메이션
         new_progress = int(stats['progress'])
-        animation_manager.animate_progress_update(self.progress_bar, new_progress)
-        
+        update_anim = animation_manager.animate_progress_update(self.progress_bar, new_progress)
+        # Fluid 애니메이션 연결
+        if update_anim:
+            update_anim.finished.connect(lambda: animation_manager.animate_fluid_progress(self.progress_bar, new_progress))
+        else:
+            animation_manager.animate_fluid_progress(self.progress_bar, new_progress)
         self.progress_label.setText(f"{stats['progress']:.0f}%")
         
         # 진척도에 따른 색상 설정
@@ -419,6 +425,8 @@ class MainWindow(QMainWindow):
 
     def show_welcome_message(self):
         """환영 메시지 표시"""
+        # 모든 애니메이션 정지
+        animation_manager.stop_all_animations()
         self.project_title_label.setText("프로젝트를 선택하거나 새로 만들어보세요! 🚀")
         self.progress_bar.setValue(0)
         self.progress_label.setText("0%")

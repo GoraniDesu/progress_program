@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Tuple, Optional
 from pathlib import Path
 from utils.helpers import format_datetime
+import re
 
 
 class BackupManager:
@@ -120,9 +121,9 @@ class BackupManager:
         백업 파일 목록 조회
         
         Returns:
-            백업 파일 정보 리스트 [(파일명, 생성일시, 크기), ...]
+            백업 파일 정보 리스트 [(표시명, 생성일시, 크기, 실제 파일명), ...]
         """
-        backup_files = []
+        raw_backup_files = []
         
         try:
             for filename in os.listdir(self.backup_dir):
@@ -130,23 +131,57 @@ class BackupManager:
                     file_path = os.path.join(self.backup_dir, filename)
                     stat = os.stat(file_path)
                     
-                    # 파일 정보
-                    created_time = datetime.fromtimestamp(stat.st_ctime)
+                    created_time_dt = datetime.fromtimestamp(stat.st_ctime) # datetime 객체로 저장
                     file_size = stat.st_size
                     
-                    backup_files.append((
-                        filename,
-                        format_datetime(created_time),
-                        self._format_file_size(file_size)
+                    # (실제 파일명, datetime 객체, 파일 크기)
+                    raw_backup_files.append((filename, created_time_dt, file_size))
+            
+            # Step 1: 모든 백업을 생성 시간 오름차순 (오래된 순)으로 정렬
+            raw_backup_files.sort(key=lambda x: x[1])
+            
+            name_groups = {}
+
+            # Step 2: 기본 표시 이름 추출 및 그룹화
+            for filename, created_time_dt, file_size in raw_backup_files:
+                # 실제 파일명에서 타임스탬프와 (N) 접미사를 제거한 '기본' 표시 이름 추출
+                # 예: 'MyProject_20250501_123456 (1).db' -> 'MyProject'
+                #     'before_restore_20250501_123456.db' -> 'before_restore'
+                base_name_without_timestamp = re.sub(r'_\d{8}_\d{6}', '', filename.rsplit('.', 1)[0])
+                base_display_name = re.sub(r'\s\((\d+)\)$', '', base_name_without_timestamp).strip()
+                
+                if base_display_name not in name_groups:
+                    name_groups[base_display_name] = []
+                
+                name_groups[base_display_name].append({
+                    'filename': filename,
+                    'created_time_dt': created_time_dt,
+                    'file_size': file_size,
+                })
+            
+            # Step 3: 각 그룹 내에서 고유한 표시 이름 부여
+            final_backup_list = []
+            for base_name, backups_in_group in name_groups.items():
+                for i, backup_info in enumerate(backups_in_group):
+                    display_name_to_use = base_name
+                    if len(backups_in_group) > 1 and i > 0: # 그룹 내에 2개 이상이고, 첫 번째(가장 오래된)가 아닐 경우
+                        display_name_to_use = f"{base_name} ({i})"
+                    
+                    final_backup_list.append((
+                        display_name_to_use,
+                        format_datetime(backup_info['created_time_dt']),
+                        self._format_file_size(backup_info['file_size']),
+                        backup_info['filename']
                     ))
             
-            # 생성일시 역순으로 정렬 (최신 백업이 먼저)
-            backup_files.sort(key=lambda x: x[1], reverse=True)
+            # Step 4: 최종 결과는 UI 표시를 위해 생성일시 역순으로 다시 정렬 (최신이 위로)
+            final_backup_list.sort(key=lambda x: x[1], reverse=True)
+            return final_backup_list
             
         except Exception as e:
             print(f"백업 목록 조회 중 오류: {e}")
         
-        return backup_files
+        return [] # 오류 발생 시 빈 리스트 반환
     
     def delete_backup(self, backup_filename: str) -> Tuple[bool, str]:
         """
