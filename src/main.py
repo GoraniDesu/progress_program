@@ -7,10 +7,17 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
-# 프로젝트 루트를 Python 경로에 한 번만 추가
-project_root = os.path.dirname(os.path.abspath(__file__))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# ------------------------------------------------------------------
+# PyInstaller 실행 파일(frozen)에서 패키지 경로 문제 해결
+# ------------------------------------------------------------------
+# • onefile/onedir 모두 sys._MEIPASS에 임시 추출 경로가 설정됨
+# • utils, ui 등 패키지가 이 경로 바로 아래 위치하므로 sys.path에 삽입
+#   (이미 존재하면 중복 삽입 안 됨)
+
+if getattr(sys, 'frozen', False):
+    bundle_dir = os.path.abspath(getattr(sys, '_MEIPASS', os.path.dirname(sys.executable)))
+    if bundle_dir not in sys.path:
+        sys.path.insert(0, bundle_dir)
 
 # 테마 매니저 (현재 모듈에서는 직접 사용하지 않지만, 초기화가 필요한 경우 import)
 from utils.theme_manager import theme_manager
