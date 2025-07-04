@@ -18,6 +18,10 @@ if getattr(sys, 'frozen', False):
     bundle_dir = os.path.abspath(getattr(sys, '_MEIPASS', os.path.dirname(sys.executable)))
     if bundle_dir not in sys.path:
         sys.path.insert(0, bundle_dir)
+    # PyInstaller가 src 디렉터리 구조를 유지한 경우(utils, ui 등이 src 하위에 존재)
+    src_path = os.path.join(bundle_dir, 'src')
+    if os.path.isdir(src_path) and src_path not in sys.path:
+        sys.path.insert(0, src_path)
 
 # 테마 매니저 (현재 모듈에서는 직접 사용하지 않지만, 초기화가 필요한 경우 import)
 from utils.theme_manager import theme_manager
@@ -39,7 +43,7 @@ def main():
     
     # 애플리케이션 정보 설정
     app.setApplicationName("Progress Program")
-    app.setApplicationVersion("0.3.2")
+    app.setApplicationVersion("1.0.0")
     app.setOrganizationName("Progress Team")
     
     # High DPI 지원

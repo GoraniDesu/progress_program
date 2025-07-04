@@ -1,9 +1,12 @@
-# Progress Program v0.3.2
+# Progress Program v1.0.0
 진척도 관리 프로그램 - 복잡한 기능에 지친 사용자를 위한 간단한 프로젝트 관리 도구
 
 ## 📋 프로젝트 개요
 
 **목표**: 복잡한 기능에 지친 사용자를 위한 간단한 진척도 관리 도구
+
+> 🤖 본 프로젝트는 **Cursor AI** 환경에서 GPT-4, Claude 4 Sonnet, o3, Gemini 등 다양한 LLM 모델과의 페어프로그래밍을 통해 기획·개발·문서화를 진행했습니다.
+> **주의**: AI 모델의 특성상, 코드, 문서, 주석 등에 부정확하거나 모호한 표현, 또는 사실과 다른 정보(할루시네이션)가 포함되어 있을 수 있습니다. 중요한 내용을 확인하거나 사용할 때에는 반드시 교차 검증을 거치시길 권장합니다. 모든 정보가 100% 정확하다고 보장할 수 없으므로, 사용에 주의를 기울여 주시기 바랍니다.
 
 ### 🎯 핵심 기능
 1. **진척도 관리**: 큰 주제 → 하위 할 일 → 체크박스 완료 시 자동 진척도 계산
@@ -23,29 +26,42 @@
 - **개발환경**: Cursor, Anaconda
 - **배포**: PyInstaller (EXE 생성)
 
+## 📦 다운로드
+
+- 최신 버전(v1.0.0) onedir 패키지: [Google Drive](https://drive.google.com/drive/folders/16yF6xauE6WmU2R4KswrJVkHItAs7y1tG?usp=sharing)
+- 과거 버전 및 변경 이력: GitHub Releases 탭 참고
+
 ## 🚀 빠른 시작
 
-### 설치 및 실행
+### 로컬 실행 (소스 코드)
 ```bash
-# 필요한 패키지 설치
-pip install PySide6 matplotlib
+# 1) 의존 패키지 설치
+pip install -r requirements.txt
 
-# 프로그램 실행
+# 2) 애플리케이션 실행
 python src/main.py
 ```
 
-### 배포 버전 사용
-1. `dist/ProgressProgram.exe` 파일을 원하는 위치에 복사
-2. 더블클릭으로 실행
+### 배포 실행 (EXE)
 
-### 스크립트로 실행
-```bash
-# Windows에서 스크립트 실행
-scripts/run.bat
+> 사전 빌드된 **v1.0.0 onedir 패키지**는 Google Drive를 통해 제공됩니다.  
+> [📦 다운로드 바로가기](https://drive.google.com/drive/folders/16yF6xauE6WmU2R4KswrJVkHItAs7y1tG?usp=sharing)
 
-# 환경 설정 (최초 한 번)
-scripts/setup_env.bat
+1. **onedir 패키지** : `dist/ProgressProgram_1.0.0/` 폴더를 그대로 복사 → `progress_program.exe` 더블클릭
+2. **onefile 실행파일**(선택): `dist/progress_program.exe` (단일 파일) – 내부에서 TEMP 폴더에 자동 해제 후 실행됩니다.
+
+### 원-클릭 빌드 스크립트
+Windows 사용자는 아래 스크립트로 손쉽게 빌드할 수 있습니다.
+
+```powershell
+# PowerShell
+scripts\build_release.ps1 1.0.0   # onedir 빌드 + 실행 여부 질의
+
+# CMD / 더블클릭
+scripts\build_release.bat 1.0.0   # onedir 빌드만 수행
 ```
+
+빌드 산출물은 `dist/ProgressProgram_1.0.0/` 에 생성됩니다.
 
 ## 📖 사용 방법
 
@@ -186,6 +202,10 @@ progress_program/
 - **[개발 프로세스 가이드](docs/guides/reference/development_process_guide.md)**: AI와의 효율적 협업 방법
 - **[프로젝트 상세 개요](docs/guides/reference/README.md)**: 상세한 프로젝트 정보
 - **[변경 로그](docs/changelog/CHANGELOG.md)**: 버전별 변경사항 기록
+
+## 🔤 폰트 라이선스
+
+이 프로그램은 '영양군 음식디미방체' 폰트를 사용하였으며, 해당 폰트는 공공누리 제1유형(출처표시) 라이선스에 따라 사용되었습니다.
 
 ## 🔧 개발 명령어
 

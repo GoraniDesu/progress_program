@@ -101,16 +101,16 @@ project_guide/
 ## 📚 **관련 문서**
 
 ### 🏗️ **기술 문서**
-- [`expert_opinion/development_checklist.md`](../expert_opinion/development_checklist.md) - 상세 개발 체크리스트
-- [`expert_opinion/compatibility_requirements.md`](../expert_opinion/compatibility_requirements.md) - 호환성 요구사항
+- [`development_checklist_v0.4.md`](../../expert_opinion/archive/v0.4/development_checklist_v0.4.md) - 상세 개발 체크리스트
+- [`compatibility_requirements_v0.4.md`](../../expert_opinion/archive/v0.4/compatibility_requirements_v0.4.md) - 호환성 요구사항
 
 ### 📋 **프로젝트 문서**
-- [`README.md`](../README.md) - 프로젝트 개요
-- [`reff/DEVELOPMENT_GUIDE.md`](../reff/DEVELOPMENT_GUIDE.md) - 개발 가이드
-- [`CHANGELOG.md`](../CHANGELOG.md) - 변경 이력
+- [`README.md`](../../README.md) - 프로젝트 개요
+- [`DEVELOPMENT_GUIDE.md`](../reference/DEVELOPMENT_GUIDE.md) - 개발 가이드
+- [`CHANGELOG.md`](../../changelog/CHANGELOG.md) - 변경 이력
 
-### 📊 **버전 정보**
-- [`changelog/v0.3.0_development_plan.md`](../changelog/v0.3.0_development_plan.md) - 현재 개발 계획
+### 📅 **특정 버전 계획**
+- [`v0.3.0 개발 계획`](../../changelog/CHANGELOG.md#v030---2025-07-03) - v0.3.0 개발 계획 (통합됨)
 
 ---
 
