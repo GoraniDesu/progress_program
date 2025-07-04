@@ -8,8 +8,8 @@ from PySide6.QtWidgets import (
     QTextEdit, QProgressBar, QTabWidget, QFrame,
     QMenuBar, QMenu, QApplication
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QAction, QShortcut, QKeySequence, QColor
+from PySide6.QtCore import Qt, Signal, QTimer, QRect, QEvent, QPropertyAnimation, QEasingCurve, QPoint
+from PySide6.QtGui import QFont, QAction, QShortcut, QKeySequence, QColor, QFontMetrics, QPainter, QPen
 from database.database import Database
 from database.models import Project
 from utils.progress import ProgressCalculator
@@ -22,10 +22,29 @@ from ui.project_widget import ProjectWidget
 from ui.backup_dialog import BackupDialog
 from ui.flow_progress_bar import FlowProgressBar
 from utils.celebration_manager import CelebrationManager
+import random  # 랜덤 축하 메시지에 사용
 
 
 class MainWindow(QMainWindow):
     """메인 윈도우"""
+    
+    # 100% 달성 축하 아이콘/문구 리스트
+    CELEBRATION_ICONS = ["| 🤩", "| 🥳", "| 🎉", "| 👍"]
+    CELEBRATION_MESSAGES = [
+        "완벽 실행‼",
+        "성공적 마무리‼",
+        "100% 달성‼",
+        "최고의 결과‼"
+    ]
+    
+    # 완료 도장 문구 리스트 (공백/개행 동일 규칙 적용)
+    STAMP_TEXTS = [
+        "대 박 \n 사 건",
+        "내 가 \n 해 냄",
+        "이 걸 \n 해 냄",
+        "이 게 \n 되 네",
+        "해 치 \n 웠 다"
+    ]
     
     def __init__(self):
         super().__init__()
@@ -38,6 +57,16 @@ class MainWindow(QMainWindow):
         # 축하 매니저 초기화(테마·애니메이션 매니저 공유)
         self.celebration_manager = CelebrationManager(self, theme_manager, animation_manager)
         self.load_projects()
+
+        # 설명 라벨 테마 변경 시 동기화
+        theme_manager.theme_changed.connect(lambda *_: self.apply_theme_to_desc())
+        self.apply_theme_to_desc()
+
+        # 100% 도장 지연 표시 타이머 보관용
+        self.stamp_timer: QTimer | None = None
+        self._stamp_project_id: int | None = None  # 현재 화면에 표시된 도장 대상 프로젝트 id
+        self._project_stamp_texts: dict[int, str] = {}  # 프로젝트별 선택된 도장 문구 캐시
+        self._previous_project_progress: dict[int, int] = {} # 프로젝트별 이전 진척도 저장
 
     def init_ui(self):
         """UI 초기화"""
@@ -127,6 +156,18 @@ class MainWindow(QMainWindow):
         self.project_title_label.setStyleSheet("padding-left: 6px; padding-top: 6px; padding-bottom: 6px;")
         layout.addWidget(self.project_title_label)
         
+        # 프로젝트 설명
+        self.project_desc_label = QLabel()
+        self.project_desc_label.setObjectName("projectDescription")
+        self.project_desc_label.setAccessibleName("프로젝트 설명")
+        self.project_desc_label.setWordWrap(True)
+        self.project_desc_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        # 기본 스타일(컬러는 테마에 따라 apply_theme_to_desc 에서 동적으로 설정)
+        self.project_desc_label.setStyleSheet("font-size: 14px; line-height: 1.4em; padding-left: 20px;")
+        layout.addWidget(self.project_desc_label)
+        # 처음에는 숨김 (환영 화면 대비)
+        self.project_desc_label.hide()
+        
         # 진척도 바
         progress_layout = QHBoxLayout()
         self.progress_bar = FlowProgressBar()
@@ -136,6 +177,12 @@ class MainWindow(QMainWindow):
         progress_layout.addWidget(self.progress_bar)
         progress_layout.addWidget(self.progress_label)
         layout.addLayout(progress_layout)
+        
+        # 완료 도장 (우상단 코너, 절대 위치)
+        self.completion_stamp = StampWidget("내 가 \n 해 냄 ", self, circle=True, angle=-15)
+        self.completion_stamp.hide()
+        # 메인 윈도우 리사이즈에 대응해 재배치
+        self.installEventFilter(self.completion_stamp)
         
         return widget
 
@@ -301,9 +348,17 @@ class MainWindow(QMainWindow):
             project_status_info = status_manager.get_project_status_summary(project, tasks)
             status_icon = project_status_info['icon']
             
-            # 리스트 아이템 생성 - 상태 아이콘 추가
-            status_text = f"{status_icon} " if status_icon else ""
-            item_text = f"{status_text}{project.title}\n📊 {progress:.0f}% ({stats['completed']}/{stats['total']})"
+            # 제목이 길 경우 말줄임 표시
+            metrics = QFontMetrics(self.project_list.font())
+            short_title = metrics.elidedText(project.title, Qt.ElideRight, 28)
+
+            item_text = f"{status_icon} {short_title}\n📊 {progress:.0f}% ({stats['completed']}/{stats['total']})"
+            
+            # 완료(100%) 시 축하 메시지 추가
+            if progress >= 100:  # 100% 달성
+                random_icon = random.choice(self.CELEBRATION_ICONS)
+                random_msg = random.choice(self.CELEBRATION_MESSAGES)
+                item_text += f" {random_icon} {random_msg}"
             
             # 상태별 추가 정보
             if project_status_info['urgent_tasks'] > 0:
@@ -314,11 +369,16 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(item_text)
             item.setData(Qt.UserRole, project)
             
+            # 설명을 툴팁으로 제공
+            item.setToolTip(project.description or "")
+            
             # 상태에 따른 색상 적용
             if project_status_info['status'] != 'normal':
                 item.setForeground(QColor(project_status_info['color']))
             
             self.project_list.addItem(item)
+
+        # load_projects 종료
 
     def create_new_project(self):
         """새 프로젝트 생성"""
@@ -354,6 +414,10 @@ class MainWindow(QMainWindow):
 
     def on_project_selected(self, item: QListWidgetItem):
         """프로젝트 선택 이벤트"""
+        # None 체크 추가
+        if not item:
+            return
+            
         # 다른 프로젝트로 전환 시 모든 애니메이션·축하 효과 중지
         animation_manager.stop_all_animations()
         if hasattr(self, 'celebration_manager'):
@@ -376,17 +440,71 @@ class MainWindow(QMainWindow):
         # UI 업데이트
         self.project_title_label.setText(f"⭐ {self.current_project.title} ⭐")
         
+        # 설명 라벨 업데이트 (없으면 '(설명 없음)')
+        desc_text = (self.current_project.description or "").strip()
+        if desc_text:
+            self.project_desc_label.setText(desc_text)
+            self.project_desc_label.show()
+        else:
+            self.project_desc_label.hide()
+        
         # 진척도 바 애니메이션 (값 동일해도 valueChanged 유도)
         new_progress = int(stats['progress'])
+        # 이전 진척도 가져오기 (없으면 0)
+        old_progress = self._previous_project_progress.get(self.current_project.id, 0)
+        # 현재 진척도 저장
+        self._previous_project_progress[self.current_project.id] = new_progress
+        
         if self.progress_bar.value() == new_progress:
             self.progress_bar.setValue(new_progress)
         animation_manager.animate_progress_update(self.progress_bar, new_progress)
         self.progress_label.setText(f"{stats['progress']:.0f}%")
         
-        # 100 % 달성 시 축하 애니메이션(최초 1회)
+        # 100 % 달성 시 축하 애니메이션 및 도장 표시(2초 지연)
         if new_progress == 100:
             # CelebrationManager가 이미 실행 중이면 start() 내부에서 무시
             self.celebration_manager.start(self.progress_bar)
+
+            # 같은 프로젝트의 도장이 이미 표시 중이면 아무 것도 하지 않음
+            same_stamp_visible = (
+                self.completion_stamp.isVisible() and self._stamp_project_id == self.current_project.id
+            )
+
+            if not same_stamp_visible:
+                # 다른 프로젝트 도장이 보이거나 도장이 안 보이는 경우: 기존 도장/타이머 정리 후 재스케줄
+                if self.completion_stamp.isVisible():
+                    self.hide_completion_stamp()
+
+                if self.stamp_timer and self.stamp_timer.isActive():
+                    self.stamp_timer.stop()
+
+                # 100%에 새로 도달한 경우 문구를 랜덤으로 다시 선택하도록 캐시 지움
+                if old_progress < 100 and self.current_project.id in self._project_stamp_texts:
+                    del self._project_stamp_texts[self.current_project.id]
+
+                self.stamp_timer = QTimer(self)
+                self.stamp_timer.setSingleShot(True)
+
+                current_project_id = self.current_project.id if self.current_project else None
+
+                def _timeout():
+                    # 프로젝트가 변경되지 않았는지 확인
+                    if self.current_project and self.current_project.id == current_project_id:
+                        self.show_completion_stamp()
+                        self._stamp_project_id = self.current_project.id
+
+                self.stamp_timer.timeout.connect(_timeout)
+                self.stamp_timer.start(2000)
+        else:
+            # 100%가 아니면 즉시 도장 숨김
+            self.hide_completion_stamp()
+            if self.stamp_timer and self.stamp_timer.isActive():
+                self.stamp_timer.stop()
+            self._stamp_project_id = None
+        
+        # 레이아웃 변화(설명 라벨 show/hide 등) 후 도장이 이미 표시중이라면 위치 재계산
+        if self.completion_stamp.isVisible():
+            QTimer.singleShot(0, lambda: self.completion_stamp.reposition(self))
         
         # 진척도에 따른 색상 설정
         progress = stats['progress']
@@ -419,6 +537,30 @@ class MainWindow(QMainWindow):
                 }}
             """)
 
+    def show_completion_stamp(self):
+        """완료 도장 표시 및 위치 조정"""
+        # 프로젝트별로 한 번 선택된 문구를 기억
+        project_id = self.current_project.id if self.current_project else None
+        if project_id is None:
+            return  # 예외적 상황 - 프로젝트가 없으면 표시하지 않음
+
+        if project_id not in self._project_stamp_texts:
+            # 아직 문구가 정해지지 않았다면 랜덤 선택 후 저장
+            self._project_stamp_texts[project_id] = random.choice(self.STAMP_TEXTS)
+
+        # 캐시된 문구 적용
+        self.completion_stamp.set_text(self._project_stamp_texts[project_id])
+
+        # 먼저 정확한 위치로 이동시킨 후 보이도록 합니다.
+        self.completion_stamp.reposition(self, instant=True)
+        self.completion_stamp.show()
+        self.completion_stamp.raise_()
+        self._stamp_project_id = self.current_project.id
+
+    def hide_completion_stamp(self):
+        """완료 도장 숨기기"""
+        self.completion_stamp.hide()
+
     def on_project_updated(self):
         """프로젝트 업데이트 이벤트"""
         # 프로젝트 목록 새로고침
@@ -443,6 +585,10 @@ class MainWindow(QMainWindow):
         self.project_title_label.setText("프로젝트를 선택하거나 새로 만들어보세요! 🚀")
         self.progress_bar.setValue(0)
         self.progress_label.setText("0%")
+        self.project_desc_label.clear()
+        self.project_desc_label.hide()
+        # 완료 도장도 숨김
+        self.completion_stamp.hide()
 
     def closeEvent(self, event):
         """윈도우 종료 이벤트"""
@@ -454,4 +600,153 @@ class MainWindow(QMainWindow):
             event.accept()
         except Exception as e:
             print(f"종료 시 오류: {e}")
-            event.accept() 
+            event.accept()
+
+    # ------------------------------------------------------------------
+    # 프로젝트 설명 라벨 테마 적용
+    # ------------------------------------------------------------------
+
+    def apply_theme_to_desc(self):
+        """테마 변경에 따라 설명 라벨 색상 조정"""
+        current_theme = theme_manager.get_current_theme()
+        if current_theme == 'dark':
+            color = "#B0B0B0"
+        else:
+            color = "#636363"
+        # 왼쪽 패딩 포함 스타일 업데이트
+        self.project_desc_label.setStyleSheet(
+            f"color: {color}; font-size: 14px; line-height: 1.4em; padding-left: 20px;"
+        ) 
+
+class StampWidget(QWidget):
+    """회전/사각·원형 도장 위젯"""
+    def __init__(self, text: str = "내가해냄", parent: QWidget | None = None, *, circle: bool = False, angle: int = -45):
+        super().__init__(parent)
+        self.text = text
+        self.circle = circle  # True -> 원형, False -> 사각형
+        self.angle = angle    # 회전 각도
+        self.font = QFont("영양군 음식디미방", 35, QFont.Bold)
+        # 투명 배경 설정
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # 마우스 이벤트 투명화(클릭 통과)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.update_size()
+        self._move_anim: QPropertyAnimation | None = None  # 위치 애니메이션
+
+    def update_size(self):
+        """텍스트 기반으로 위젯 크기 갱신"""
+        fm = QFontMetrics(self.font)
+        lines = self.text.splitlines()
+        text_w = max(fm.horizontalAdvance(line) for line in lines)
+        text_h = fm.height() * len(lines)
+        margin = 14  # 내부 여백
+        self.base_w = text_w + margin * 2
+        self.base_h = text_h + margin * 2
+
+        # 원형은 정사각형 기준으로 강제 (정확한 원을 위해)
+        if self.circle:
+            longest = max(self.base_w, self.base_h)
+            self.base_w = self.base_h = longest  # 정사각형 내부 영역 확보
+            size = longest + 10  # 추가 버퍼 포함 위젯 전체 크기
+        else:
+            # 사각형(회전) 도장은 대각선 길이를 고려하여 위젯 크기 결정
+            size = int((self.base_w ** 2 + self.base_h ** 2) ** 0.5) + 2
+        # 위젯은 정사각형으로 고정(가로=세로)
+        self.setFixedSize(size, size)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # 중심으로 이동 후 회전
+        painter.translate(self.width() / 2, self.height() / 2)
+        if self.angle:
+            painter.rotate(self.angle)
+        painter.translate(-self.base_w / 2, -self.base_h / 2)
+
+        # 붉은 펜 설정(도장 테두리)
+        pen = QPen(QColor("#CC0000"))
+        pen.setWidth(3)
+        painter.setPen(pen)
+        painter.setBrush(Qt.transparent)
+
+        if self.circle:
+            painter.drawEllipse(0, 0, self.base_w, self.base_h)
+        else:
+            painter.drawRect(0, 0, self.base_w, self.base_h)
+
+        # 텍스트(여러 줄 가능) 그리기
+        painter.setFont(self.font)
+        text_rect = QRect(0, 0, self.base_w, self.base_h)
+        painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, self.text)
+        painter.end()
+
+    # ---------------------------------------------
+    # 위치 재계산 및 이벤트 필터
+    # ---------------------------------------------
+    def reposition(self, main_window: 'MainWindow', *, instant: bool = False):
+        """도장 위치 계산
+        - X: '생성일'(4)과 '액션'(5) 컬럼 중앙
+        - Y: '완료된 할 일 숨기기' 버튼 Y
+        instant=True 일 때 애니메이션 없이 바로 이동"""
+        try:
+            task_widget = main_window.project_widget.task_widget
+            btn = task_widget.toggle_completed_btn
+            header = task_widget.task_table.horizontalHeader()
+            from PySide6.QtCore import QPoint
+            # 컬럼 중앙 계산
+            center4 = header.sectionPosition(4) + header.sectionSize(4)//2
+            center5 = header.sectionPosition(5) + header.sectionSize(5)//2
+            mid_x = (center4 + center5)//2
+
+            header_global = header.mapToGlobal(QPoint(mid_x, 0))
+            btn_global = btn.mapToGlobal(QPoint(0, 0))
+
+            # 설명 라벨 가시성에 따른 오프셋 결정
+            if main_window.project_desc_label.isVisible():
+                offset_x = -30  # 설명이 있을 때 약간 왼쪽으로
+                offset_y = -60 # 더 위로 올림(설명 공간 만큼)
+            else:
+                offset_x = -30  # 동일 X 오프셋 유지
+                offset_y = -60  # 설명이 없으므로 덜 올림
+
+            # 도장 좌표 (글로벌)
+            x_global = header_global.x() - self.width()//2 + offset_x
+            y_global = btn_global.y() + offset_y
+
+            # 부모(MainWindow) 좌표계로 변환 후 이동
+            self._apply_move(main_window.mapFromGlobal(QPoint(x_global, y_global)), instant)
+        except Exception:
+            # fallback: 우상단
+            self.move(main_window.width() - self.width() - 10, 10)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Resize:
+            from PySide6.QtCore import QTimer
+            # 지연 호출로 레이아웃 완료 후 재배치
+            QTimer.singleShot(0, lambda: self.reposition(obj if isinstance(obj, MainWindow) else self.parentWidget(), instant=True))
+        return False  # 계속 전파 
+
+    # 공통 이동 처리 (애니메이션/즉시)
+    def _apply_move(self, target: QPoint, instant: bool):
+        if instant:
+            self.move(target)
+            return
+        if self._move_anim is None:
+            self._move_anim = QPropertyAnimation(self, b"pos", self)
+            self._move_anim.setDuration(200)
+            self._move_anim.setEasingCurve(QEasingCurve.OutCubic)
+        else:
+            if self._move_anim.state() == QPropertyAnimation.Running:
+                self._move_anim.stop()
+        self._move_anim.setStartValue(self.pos())
+        self._move_anim.setEndValue(target)
+        self._move_anim.start() 
+
+    # 문구 변경 후 크기 갱신
+    def set_text(self, new_text: str):
+        if self.text == new_text:
+            return
+        self.text = new_text
+        self.update_size()
+        self.update() 
