@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QSplitter, QLabel, QPushButton, QMessageBox,
     QListWidget, QListWidgetItem, QInputDialog,
     QTextEdit, QProgressBar, QTabWidget, QFrame,
-    QMenuBar, QMenu, QApplication
+    QMenuBar, QMenu, QApplication, QGraphicsOpacityEffect
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QRect, QEvent, QPropertyAnimation, QEasingCurve, QPoint
 from PySide6.QtGui import QFont, QAction, QShortcut, QKeySequence, QColor, QFontMetrics, QPainter, QPen
@@ -67,6 +67,12 @@ class MainWindow(QMainWindow):
         self._stamp_project_id: int | None = None  # 현재 화면에 표시된 도장 대상 프로젝트 id
         self._project_stamp_texts: dict[int, str] = {}  # 프로젝트별 선택된 도장 문구 캐시
         self._previous_project_progress: dict[int, int] = {} # 프로젝트별 이전 진척도 저장
+
+        # 프로젝트별 첫 도장 표시 여부 추적
+        self._stamp_first_shown: set[int] = set()
+        
+        # 도장 페이드 아웃 애니메이션 보관용
+        self._stamp_fade_anim: QPropertyAnimation | None = None
 
     def init_ui(self):
         """UI 초기화"""
@@ -414,14 +420,14 @@ class MainWindow(QMainWindow):
 
     def on_project_selected(self, item: QListWidgetItem):
         """프로젝트 선택 이벤트"""
-        # None 체크 추가
-        if not item:
-            return
-            
         # 다른 프로젝트로 전환 시 모든 애니메이션·축하 효과 중지
         animation_manager.stop_all_animations()
         if hasattr(self, 'celebration_manager'):
             self.celebration_manager.stop()
+
+        # 기존 도장·타이머 정리 (프로젝트 변경 시 반드시 숨김 처리)
+        self.hide_completion_stamp()
+
         project = item.data(Qt.UserRole)
         if project:
             self.current_project = project
@@ -456,8 +462,10 @@ class MainWindow(QMainWindow):
         self._previous_project_progress[self.current_project.id] = new_progress
         
         if self.progress_bar.value() == new_progress:
+            # 값이 동일하면 즉시 설정만 하고 애니메이션은 생략
             self.progress_bar.setValue(new_progress)
-        animation_manager.animate_progress_update(self.progress_bar, new_progress)
+        else:
+            animation_manager.animate_progress_update(self.progress_bar, new_progress)
         self.progress_label.setText(f"{stats['progress']:.0f}%")
         
         # 100 % 달성 시 축하 애니메이션 및 도장 표시(2초 지연)
@@ -471,30 +479,27 @@ class MainWindow(QMainWindow):
             )
 
             if not same_stamp_visible:
-                # 다른 프로젝트 도장이 보이거나 도장이 안 보이는 경우: 기존 도장/타이머 정리 후 재스케줄
-                if self.completion_stamp.isVisible():
-                    self.hide_completion_stamp()
+                # 프로젝트별 첫 표시라면 2초 지연 → 즉시 표시 / 두 번째 이후
+                is_first_time = self.current_project.id not in self._stamp_first_shown
 
-                if self.stamp_timer and self.stamp_timer.isActive():
-                    self.stamp_timer.stop()
+                if is_first_time:
+                    self.stamp_timer = QTimer(self)
+                    self.stamp_timer.setSingleShot(True)
 
-                # 100%에 새로 도달한 경우 문구를 랜덤으로 다시 선택하도록 캐시 지움
-                if old_progress < 100 and self.current_project.id in self._project_stamp_texts:
-                    del self._project_stamp_texts[self.current_project.id]
+                    current_project_id = self.current_project.id if self.current_project else None
 
-                self.stamp_timer = QTimer(self)
-                self.stamp_timer.setSingleShot(True)
+                    def _timeout():
+                        # 프로젝트가 변경되지 않았는지 확인
+                        if self.current_project and self.current_project.id == current_project_id:
+                            self.show_completion_stamp()
+                            self._stamp_project_id = self.current_project.id
 
-                current_project_id = self.current_project.id if self.current_project else None
-
-                def _timeout():
-                    # 프로젝트가 변경되지 않았는지 확인
-                    if self.current_project and self.current_project.id == current_project_id:
-                        self.show_completion_stamp()
-                        self._stamp_project_id = self.current_project.id
-
-                self.stamp_timer.timeout.connect(_timeout)
-                self.stamp_timer.start(2000)
+                    self.stamp_timer.timeout.connect(_timeout)
+                    self.stamp_timer.start(2000)
+                else:
+                    # 즉시 표시
+                    self.show_completion_stamp()
+                    self._stamp_project_id = self.current_project.id
         else:
             # 100%가 아니면 즉시 도장 숨김
             self.hide_completion_stamp()
@@ -557,8 +562,28 @@ class MainWindow(QMainWindow):
         self.completion_stamp.raise_()
         self._stamp_project_id = self.current_project.id
 
+        # 첫 표시 여부 기록
+        self._stamp_first_shown.add(self._stamp_project_id)
+
+        # 기존 페이드 애니메이션이 진행 중이면 중단 및 초기화
+        if self._stamp_fade_anim and self._stamp_fade_anim.state() == QPropertyAnimation.Running:
+            self._stamp_fade_anim.stop()
+            self.completion_stamp.setGraphicsEffect(None)
+
+        # 6초 뒤 페이드아웃 시작 스케줄링
+        QTimer.singleShot(6000, lambda pid=self._stamp_project_id: self._start_stamp_fade_out(pid))
+
     def hide_completion_stamp(self):
         """완료 도장 숨기기"""
+        if self._stamp_fade_anim and self._stamp_fade_anim.state() == QPropertyAnimation.Running:
+            self._stamp_fade_anim.stop()
+            self._stamp_fade_anim = None
+            self.completion_stamp.setGraphicsEffect(None)
+        # 예약된 타이머가 있으면 취소
+        if self.stamp_timer and self.stamp_timer.isActive():
+            self.stamp_timer.stop()
+        # 내부 상태 초기화
+        self._stamp_project_id = None
         self.completion_stamp.hide()
 
     def on_project_updated(self):
@@ -617,6 +642,35 @@ class MainWindow(QMainWindow):
         self.project_desc_label.setStyleSheet(
             f"color: {color}; font-size: 14px; line-height: 1.4em; padding-left: 20px;"
         ) 
+
+    # ------------------------------------------------------------------
+    # 도장 페이드 아웃 애니메이션
+    # ------------------------------------------------------------------
+    def _start_stamp_fade_out(self, project_id: int | None):
+        """현재 도장이 여전히 같은 프로젝트에 대해 표시된 경우 투명도 애니메이션으로 서서히 사라지게 한다."""
+        if project_id is None or project_id != self._stamp_project_id:
+            return  # 다른 프로젝트로 변경되었음
+        if not self.completion_stamp.isVisible():
+            return
+
+        # 투명도 효과 준비
+        effect = QGraphicsOpacityEffect(self.completion_stamp)
+        effect.setOpacity(1.0)
+        self.completion_stamp.setGraphicsEffect(effect)
+
+        self._stamp_fade_anim = QPropertyAnimation(effect, b"opacity", self)
+        self._stamp_fade_anim.setDuration(3000)  # 3초 동안 서서히 사라짐
+        self._stamp_fade_anim.setStartValue(1.0)
+        self._stamp_fade_anim.setEndValue(0.0)
+        self._stamp_fade_anim.setEasingCurve(QEasingCurve.OutCubic)
+
+        def _on_finished():
+            self.completion_stamp.hide()
+            self.completion_stamp.setGraphicsEffect(None)
+            self._stamp_fade_anim = None
+
+        self._stamp_fade_anim.finished.connect(_on_finished)
+        self._stamp_fade_anim.start()
 
 class StampWidget(QWidget):
     """회전/사각·원형 도장 위젯"""
