@@ -20,6 +20,8 @@ from utils.animation_manager import animation_manager
 from utils.backup_manager import BackupManager
 from ui.project_widget import ProjectWidget
 from ui.backup_dialog import BackupDialog
+from ui.flow_progress_bar import FlowProgressBar
+from utils.celebration_manager import CelebrationManager
 
 
 class MainWindow(QMainWindow):
@@ -30,8 +32,11 @@ class MainWindow(QMainWindow):
         self.db = Database()
         self.backup_manager = BackupManager(self.db.db_path)
         self.current_project = None
+        # 축하 효과 실행 중 여부는 CelebrationManager 자체에서 관리
         self.init_ui()
         self.setup_theme()
+        # 축하 매니저 초기화(테마·애니메이션 매니저 공유)
+        self.celebration_manager = CelebrationManager(self, theme_manager, animation_manager)
         self.load_projects()
 
     def init_ui(self):
@@ -85,6 +90,7 @@ class MainWindow(QMainWindow):
         # 프로젝트 목록
         self.project_list = QListWidget()
         self.project_list.itemClicked.connect(self.on_project_selected)
+        self.project_list.currentItemChanged.connect(lambda _new, _old: self.on_project_selected(self.project_list.currentItem()))
         layout.addWidget(self.project_list)
         
         return panel
@@ -123,7 +129,7 @@ class MainWindow(QMainWindow):
         
         # 진척도 바
         progress_layout = QHBoxLayout()
-        self.progress_bar = QProgressBar()
+        self.progress_bar = FlowProgressBar()
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
         self.progress_label = QLabel("0%")
@@ -348,8 +354,10 @@ class MainWindow(QMainWindow):
 
     def on_project_selected(self, item: QListWidgetItem):
         """프로젝트 선택 이벤트"""
-        # 기존 유동 애니메이션 중지
+        # 다른 프로젝트로 전환 시 모든 애니메이션·축하 효과 중지
         animation_manager.stop_all_animations()
+        if hasattr(self, 'celebration_manager'):
+            self.celebration_manager.stop()
         project = item.data(Qt.UserRole)
         if project:
             self.current_project = project
@@ -368,18 +376,23 @@ class MainWindow(QMainWindow):
         # UI 업데이트
         self.project_title_label.setText(f"⭐ {self.current_project.title} ⭐")
         
-        # 진척도 바 애니메이션
+        # 진척도 바 애니메이션 (값 동일해도 valueChanged 유도)
         new_progress = int(stats['progress'])
-        update_anim = animation_manager.animate_progress_update(self.progress_bar, new_progress)
-        # Fluid 애니메이션 연결
-        if update_anim:
-            update_anim.finished.connect(lambda: animation_manager.animate_fluid_progress(self.progress_bar, new_progress))
-        else:
-            animation_manager.animate_fluid_progress(self.progress_bar, new_progress)
+        if self.progress_bar.value() == new_progress:
+            self.progress_bar.setValue(new_progress)
+        animation_manager.animate_progress_update(self.progress_bar, new_progress)
         self.progress_label.setText(f"{stats['progress']:.0f}%")
+        
+        # 100 % 달성 시 축하 애니메이션(최초 1회)
+        if new_progress == 100:
+            # CelebrationManager가 이미 실행 중이면 start() 내부에서 무시
+            self.celebration_manager.start(self.progress_bar)
         
         # 진척도에 따른 색상 설정
         progress = stats['progress']
+        if new_progress == 100:
+            # 축하 모드에서는 골드 스타일이 적용되어 있으므로 색상 설정 건너뜀
+            return
         if progress < 25:
             color = "#f44336"  # 빨강
         elif progress < 50:

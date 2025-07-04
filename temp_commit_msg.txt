@@ -1,0 +1,18 @@
+﻿feat: 폭죽 축하 애니메이션 개선 및 프로젝트별 재트리거 지원
+
+- CelebrationManager
+  * Firework 콘페티 연출 개선(상승 0.4 s, 낙하 1.1 s, 범위개수 ) 및 자동 종료 2 s
+  * 골드 Morph 하이라이트 1.5 s 유지 후 해제
+  * ConfettiParticle 중복 delete RuntimeError 방지(shiboken6.isValid)
+- FlowProgressBar
+  * celebration_mode 도입으로 골드 그라디언트 표시복귀
+- MainWindow
+  * 프로젝트 선택/진척도 변경 트리거 보강(currentItemChanged, valueChanged)
+  * 동일 프로젝트 100 % 재달성 시 효과 재생
+- 문서 업데이트: Firework 사양 & 구현 체크리스트 보강
+- FlowProgressBar
+  * celebration_mode 도입으로 골드 그라디언트 표시복귀
+- MainWindow
+  * 프로젝트 선택/진척도 변경 트리거 보강(currentItemChanged, valueChanged)
+  * 동일 프로젝트 100 % 재달성 시 효과 재생
+- 문서 업데이트: Firework 사양 & 구현 체크리스트 보강
