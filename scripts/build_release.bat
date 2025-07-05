@@ -1,91 +1,107 @@
 @echo off
-:: ProgressProgram 빌드/패키징 스크립트 (고급 전문가용)
-:: 사용법: build_release.bat [version]
-:: 예) build_release.bat 1.0.0
+chcp 65001 > nul
+setlocal EnableExtensions EnableDelayedExpansion
 
-setlocal enableextensions
+:: ------------------------------------------------------------
+:: ProgressProgram 릴리스 빌드 스크립트 (Rewritten 2025-07)
+:: ------------------------------------------------------------
 
-:: -------------------------------------------------------------
-:: 1. 버전 파라미터 처리 / 기본값
-:: -------------------------------------------------------------
-if "%1"=="" (
-    set VERSION=dev
-) else (
-    set VERSION=%1
+:: 0) 파라미터 처리
+set "VERSION=%~1"
+if "%VERSION%"=="" set "VERSION=dev"
+set "QUIET="
+if /I "%~2"=="/quiet" set "QUIET=1"
+
+:: 1) 프로젝트 루트로 이동
+pushd "%~dp0.." || (
+    echo [오류] 프로젝트 루트로 이동 실패!
+    goto :finalize_error
 )
 
-set NAME=ProgressProgram_%VERSION%
+:: 2) 변수 정의
+set "APP_NAME=ProgressProgram"
+set "BUILD_NAME=%APP_NAME%_v%VERSION%"
+set "VENV_NAME=progress_env"
+set "VENV_DIR=.\%VENV_NAME%"
+set "PY_EXE=%VENV_DIR%\Scripts\python.exe"
+set "ICON_FILE=.\resources\icon.ico"
 
-:: -------------------------------------------------------------
-:: 0. 가상환경 활성화/생성
-:: -------------------------------------------------------------
-where conda >nul 2>nul
+call :section "ProgressProgram 릴리스 빌드 시작"
+call :log "빌드 이름: %BUILD_NAME%"
+
+:: === [1/3] PyInstaller 준비 ===
+call :section "1/3 PyInstaller 확인"
+where conda > nul 2> nul
 if %errorlevel%==0 (
-    echo Activating conda environment progress_env ...
-    call conda env list | findstr "progress_env" >nul 2>nul
-    if %errorlevel% neq 0 (
-        echo progress_env 가상환경이 없으므로 setup_env.bat 를 실행합니다...
-        call "%~dp0setup_env.bat" /quiet
+    set "PY_CMD=conda run -n %VENV_NAME% python"
+    conda env list | findstr /b /c:"%VENV_NAME%" > nul 2> nul || (
+        call :error "conda 가상환경을 찾을 수 없습니다. 먼저 setup_env.bat 실행 필요"
+        goto :finalize_error
     )
-    set "PYTHON_CMD=conda run -n progress_env python"
 ) else (
-    echo Using venv environment ...
-    if not exist "%~dp0..\progress_env\Scripts\python.exe" (
-        echo venv 가상환경이 없으므로 setup_env.bat 를 실행합니다...
-        call "%~dp0setup_env.bat" /quiet
+    set "PY_CMD=%PY_EXE%"
+    if not exist "%PY_EXE%" (
+        call :error "venv 가상환경을 찾을 수 없습니다. 먼저 setup_env.bat 실행 필요"
+        goto :finalize_error
     )
-    set "PYTHON_CMD=%~dp0..\progress_env\Scripts\python.exe"
 )
 
-:: PyInstaller(존재 여부) 확인
-%PYTHON_CMD% -m pip show pyinstaller >nul 2>nul
-if %errorlevel% neq 0 (
-    echo Installing PyInstaller...
-    %PYTHON_CMD% -m pip install pyinstaller
+%PY_CMD% -m pip show pyinstaller > nul 2> nul || (
+    call :log "PyInstaller 미설치. 설치 진행"
+    %PY_CMD% -m pip install pyinstaller || (
+        call :error "PyInstaller 설치 실패"
+        goto :finalize_error
+    )
 )
 
-:: -------------------------------------------------------------
-:: 2. 환경 정리
-:: -------------------------------------------------------------
-echo Cleaning previous build folders...
-rd /s /q build 2>nul
-rd /s /q dist 2>nul
+:: === [2/3] 이전 빌드 폴더 정리 ===
+call :section "2/3 이전 빌드 정리"
+if exist build rd /s /q build
+if exist dist rd /s /q dist
+call :log "정리 완료"
 
-:: -------------------------------------------------------------
-:: 3. PyInstaller onedir 빌드 (권장 배포)
-:: -------------------------------------------------------------
-echo Building ONEDIR package %NAME% ...
-%PYTHON_CMD% -m PyInstaller --clean --noconfirm --onedir --windowed ^
-  --name %NAME% ^
-  --paths src ^
-  --add-data "config;config" ^
-  --add-data "resources;resources" ^
-  --add-data "data\progress.db;data" ^
-  src\main.py
-if errorlevel 1 (
-    echo PyInstaller onedir build failed.
-    goto :error
+:: === [3/3] PyInstaller 빌드 ===
+call :section "3/3 PyInstaller 실행"
+set "PYI_OPTS=--noconfirm --clean src/main.py --onedir --name %BUILD_NAME% --windowed"
+set "DATA_OPTS=--add-data \"config;config\" --add-data \"resources;resources\""
+set "ICON_OPT="
+if exist "%ICON_FILE%" set "ICON_OPT=--icon \"%ICON_FILE%\""
+
+%PY_CMD% -m PyInstaller %PYI_OPTS% %DATA_OPTS% %ICON_OPT% || (
+    call :error "PyInstaller 빌드 실패"
+    goto :finalize_error
 )
 
-:: -------------------------------------------------------------
-:: 4. PyInstaller onefile 빌드 (옵션) - 주석 해제 시 활성화
-:: -------------------------------------------------------------
-:: echo Building ONEFILE executable %NAME%.exe ...
-:: pyinstaller --clean --noconfirm --onefile --windowed ^
-::   --name %NAME% ^
-::   --paths src ^
-::   --add-data "config;config" ^
-::   --add-data "resources;resources" ^
-::   --add-data "data\progress.db;data" ^
-::   src\main.py
+call :section "완료"
+call :log "출력 폴더: dist\%BUILD_NAME%"
+set "EXIT_CODE=0"
+ goto :finalize
 
-:: -------------------------------------------------------------
-:: 5. 완료 메시지
-:: -------------------------------------------------------------
-echo Build complete! Output: dist\%NAME%\
-pause
-exit /b 0
+:: ------------------------------------------------------------
+:: Helper 함수
+:: ------------------------------------------------------------
+:log
+    echo   %~1
+    goto :eof
+
+:section
+    echo.
+    echo [%~1]
+    goto :eof
 
 :error
-pause
-exit /b 1 
+    echo.
+    echo [오류] %~1
+    set "EXIT_CODE=1"
+    goto :eof
+
+:finalize_error
+    set "EXIT_CODE=1"
+
+:finalize
+    popd 2> nul
+    if not defined QUIET (
+        timeout /t -1 > nul
+    )
+    endlocal
+    exit /b %EXIT_CODE% 

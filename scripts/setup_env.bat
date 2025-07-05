@@ -1,42 +1,85 @@
 @echo off
-echo [ProgressProgram] 환경을 설정합니다...
-echo.
+@chcp 65001 > nul
+@setlocal EnableExtensions EnableDelayedExpansion
 
-REM ------------------------------------------------------
-REM 1. conda 존재 여부 확인
-REM    - conda가 없으면 venv를 사용
-REM ------------------------------------------------------
-where conda >nul 2>nul
-if %errorlevel%==0 (
-    goto :CREATE_CONDA
-) else (
-    goto :CREATE_VENV
+:: Setup script for ProgressProgram
+set "QUIET="
+if /I "%~1"=="/quiet" set "QUIET=1"
+
+pushd "%~dp0.." || (
+    echo [ERROR] Failed to move to project root!
+    goto :finalize_error
 )
 
-:CREATE_CONDA
-echo [1/3] conda 가상환경(progress_env) 생성 / 업데이트...
-call conda env list | findstr "progress_env" >nul 2>nul
-if %errorlevel% neq 0 (
-    call conda create -n progress_env python=3.9 -y
-)
-echo [2/3] 패키지 설치(requirements.txt)...
-call conda run -n progress_env pip install -r requirements.txt
-goto :DONE
+set "VENV_NAME=progress_env"
+set "PY_MIN_MAJOR=3"
+set "PY_MIN_MINOR=9"
+set "VENV_DIR=.\%VENV_NAME%"
 
-:CREATE_VENV
-echo [1/3] venv 가상환경(progress_env) 생성 / 업데이트...
-if not exist progress_env (
-    python -m venv progress_env
-)
-echo [2/3] 패키지 설치(requirements.txt)...
-call progress_env\Scripts\pip.exe install --upgrade pip
-call progress_env\Scripts\pip.exe install -r requirements.txt
-goto :DONE
+echo.
+echo [Setup Start]
+echo Root: %CD%
 
-:DONE
 echo.
-echo [3/3] 환경 설정이 완료되었습니다!
-echo run.bat 파일을 실행하여 프로그램을 시작하세요.
+echo [1/4] Python Version Check
+where python > nul 2> nul || (
+    echo [ERROR] Python not found
+    goto :finalize_error
+)
+for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PYTHON_VERSION=%%v"
+echo Python Version: !PYTHON_VERSION!
+for /f "tokens=1,2 delims=." %%a in ("!PYTHON_VERSION!") do (
+    if %%a LSS %PY_MIN_MAJOR% (
+        echo [ERROR] Python %PY_MIN_MAJOR%.%PY_MIN_MINOR%+ required
+        goto :finalize_error
+    ) else if %%a EQU %PY_MIN_MAJOR% if %%b LSS %PY_MIN_MINOR% (
+        echo [ERROR] Python %PY_MIN_MAJOR%.%PY_MIN_MINOR%+ required
+        goto :finalize_error
+    )
+)
+echo Python version OK
+
 echo.
-if not "%1"=="/quiet" pause
-exit /b 
+echo [2/4] Virtual Environment Setup
+if not exist "%VENV_DIR%\Scripts\activate.bat" (
+    echo Creating venv...
+    python -m venv "%VENV_DIR%" || (
+        echo [ERROR] Failed to create venv
+        goto :finalize_error
+    )
+)
+set "PY_CMD=%VENV_DIR%\Scripts\python.exe"
+
+echo.
+echo [3/4] Package Installation
+if not exist "requirements.txt" (
+    echo [ERROR] requirements.txt not found
+    goto :finalize_error
+)
+%PY_CMD% -m pip install --upgrade pip || (
+    echo [ERROR] Failed to upgrade pip
+    goto :finalize_error
+)
+%PY_CMD% -m pip install -r "requirements.txt" || (
+    echo [ERROR] Failed to install packages
+    goto :finalize_error
+)
+echo Packages installed successfully
+
+echo.
+echo [4/4] Setup Complete
+echo Run 'run.bat' to start the program
+set "EXIT_CODE=0"
+goto :finalize
+
+:finalize_error
+set "EXIT_CODE=1"
+goto :finalize
+
+:finalize
+popd 2> nul
+if not defined QUIET (
+    pause
+)
+endlocal
+exit /b %EXIT_CODE% 

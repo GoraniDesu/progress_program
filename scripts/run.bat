@@ -1,33 +1,51 @@
 @echo off
-echo Starting Progress Program...
-echo.
+@chcp 65001 > nul
+@setlocal EnableExtensions EnableDelayedExpansion
 
-REM Change to project root directory
-cd /d "%~dp0.."
+:: Run script for ProgressProgram
+set "QUIET="
+if /I "%~1"=="/quiet" set "QUIET=1"
 
-REM ------------------------------------------------------
-REM 1. 가상환경 존재 여부 확인 – 없으면 자동 생성
-REM ------------------------------------------------------
-where conda >nul 2>nul
-if %errorlevel%==0 (
-    REM conda 사용
-    conda env list | findstr "progress_env" >nul 2>nul
+echo [ProgressProgram] Starting...
+pushd "%~dp0.." || (
+    echo [ERROR] Failed to move to project root! Current dir: %CD%
+    goto :finalize_error
+)
+
+set "VENV_NAME=progress_env"
+set "VENV_DIR=.\%VENV_NAME%"
+set "PY_EXE=%VENV_DIR%\Scripts\python.exe"
+
+echo [ProgressProgram] Checking virtual environment: %VENV_NAME%
+
+if not exist "%PY_EXE%" (
+    echo [ProgressProgram] Virtual environment not found, running setup_env.bat...
+    call "%~dp0setup_env.bat" /quiet
     if %errorlevel% neq 0 (
-        echo conda 가상환경이 없으므로 setup_env.bat 를 실행합니다...
-        call "%~dp0setup_env.bat" /quiet
+        echo [ERROR] setup_env.bat failed!
+        goto :finalize_error
     )
-    echo Running with conda environment...
-    conda run -n progress_env python src/main.py
-) else (
-    REM venv 사용
-    if not exist progress_env\Scripts\python.exe (
-        echo venv 가상환경이 없으므로 setup_env.bat 를 실행합니다...
-        call "%~dp0setup_env.bat" /quiet
-    )
-    echo Running with venv environment...
-    progress_env\Scripts\python.exe src/main.py
+)
+
+echo [ProgressProgram] Running main.py...
+"%PY_EXE%" src\main.py
+if %errorlevel% neq 0 (
+    echo [ERROR] Program execution failed
+    goto :finalize_error
 )
 
 echo.
-echo Program terminated. Press any key to exit...
-pause > nul 
+echo [ProgressProgram] Program terminated successfully
+goto :finalize
+
+:finalize_error
+set "EXIT_CODE=1"
+goto :finalize
+
+:finalize
+popd 2> nul
+if not defined QUIET (
+    pause
+)
+endlocal
+exit /b %EXIT_CODE% 
