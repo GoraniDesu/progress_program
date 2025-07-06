@@ -15,7 +15,7 @@
 ## 기술 스택
 
 - **언어**: Python
-- **GUI**: PySide6 (LGPL 라이선스로 상업적 사용 용이)
+- **GUI**: PySide6 (LGPL v3)
 - **데이터베이스**: SQLite (단일 파일 기반 경량 DB)
 - **개발환경**: Cursor, Anaconda
 - **배포**: PyInstaller (EXE 생성)

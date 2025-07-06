@@ -1,4 +1,4 @@
-# Progress Program v1.0.0
+# Progress Program v1.0.1
 
 **복잡한 기능에 지친 당신을 위한, 가장 간단하고 직관적인 진척도 관리 도구**
 
@@ -20,11 +20,11 @@
 ## 📦 다운로드 및 빠른 시작
 
 ### 1. 다운로드
-- **최신 버전 (v1.0.0)**: [Google Drive에서 다운로드](https://drive.google.com/drive/folders/16yF6xauE6WmU2R4KswrJVkHItAs7y1tG?usp=sharing)
+- **최신 버전 (v1.0.1)**: [Google Drive에서 다운로드](https://drive.google.com/drive/folders/1QsoBvBSgSW3gyhl780cP7_yarD5C1lR8?usp=sharing)
 - **과거 버전 및 상세 변경 이력**: [전체 변경 로그(CHANGELOG)](docs/changelog/CHANGELOG.md) 참고
 
 ### 2. 실행 방법
-- **Windows 사용자**: 다운로드한 `ProgressProgram_1.0.0/` 폴더에서 `progress_program.exe`를 더블클릭하여 바로 실행하세요.
+- **Windows 사용자**: 다운로드한 `ProgressProgram_1.0.1/` 폴더에서 `progress_program.exe`를 더블클릭하여 바로 실행하세요.
 - **소스 코드로 직접 실행**:
   ```bash
   # 1) 의존 패키지 설치
@@ -76,8 +76,24 @@ progress_program/
 Windows 환경에서는 아래 스크립트로 직접 빌드할 수 있습니다.
 ```powershell
 # PowerShell 스크립트 실행 (버전 번호 지정)
-scripts\build_release.ps1 1.0.0
+scripts\build_release.ps1 1.0.1
+
+# 또는 CMD에서 실행
+scripts\build_release.bat 1.0.1
 ```
+
+#### 빌드 스크립트 개선사항 (v1.0.1)
+- 가상환경(venv/conda) 자동 감지
+- 필요한 의존성 패키지 자동 설치
+- Python 경로 자동 감지 및 설정
+- 상세한 오류 메시지 제공
+- 실행 파일 호환성 강화
+
+### 실행 파일 호환성 (v1.0.1)
+- PyInstaller 패키지 경로 자동 감지
+- 모듈 import 오류 해결
+- 리소스 파일 접근 개선
+- 다양한 Python 환경 지원
 
 ### 폰트 라이선스
 이 프로그램은 '영양군 음식디미방체' 폰트를 사용하며, 공공누리 제1유형(출처표시) 라이선스를 준수합니다.
@@ -88,6 +104,43 @@ scripts\build_release.ps1 1.0.0
 
 복잡한 기능보다는 직관적인 사용성에, 사용자의 부담을 줄이는 자동화에, 그리고 시각적 피드백을 통한 성취감에 집중합니다.
 
+## 📜 라이선스
+
+이 프로젝트는 Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0) 하에 배포됩니다.
+
+### 사용 허가 범위
+✅ 허용되는 사용:
+- 개인적인 사용
+- 교육 목적 사용
+- 비영리 단체 사용
+- 연구 및 개발 목적 사용 (비상업적)
+- 소스코드 수정 및 재배포 (비상업적 목적)
+
+❌ 금지되는 사용:
+- 소프트웨어 판매
+- 광고를 통한 수익 창출
+- 기업/영리 목적 사용
+- 상업적 제품/서비스에 포함
+- 영리 목적의 배포
+
+### 필수 표시 사항
+사용 시 반드시 다음을 포함해야 합니다:
+1. 원작자 표시: "pollux (GoraniDesu)" (GitHub: [@GoraniDesu](https://github.com/GoraniDesu))
+2. 원본 프로젝트 링크
+3. 라이선스 문구
+4. 수정 시 수정 내용 명시
+
+자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+### 제3자 라이선스
+이 프로젝트는 다음과 같은 제3자 소프트웨어와 리소스를 사용합니다:
+- PySide6 (LGPL v3)
+- Python (PSF License)
+- SQLite (Public Domain)
+- 영양군 음식디미방체 (공공누리 제1유형)
+
+자세한 라이선스 정보는 [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) 파일을 참조하세요.
+
 ---
 
-**Progress Program v1.0.0으로 여러분의 프로젝트를 더욱 효율적이고 즐겁게 관리해보세요! 🚀**
+**Progress Program v1.0.1로 여러분의 프로젝트를 더욱 효율적이고 즐겁게 관리해보세요! 🚀**
