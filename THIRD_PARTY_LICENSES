@@ -1,0 +1,38 @@
+# Third-Party Licenses
+
+This document contains the licenses and notices for third-party software used in Progress Program.
+
+## PySide6 (Qt for Python)
+
+PySide6 is licensed under the GNU Lesser General Public License (LGPL) version 3.
+For full license text, visit: https://www.gnu.org/licenses/lgpl-3.0.html
+
+Key points:
+- You can use PySide6 in commercial applications
+- If you modify PySide6 itself, you must share those modifications
+- You don't need to share your application code
+
+## 영양군 음식디미방체 (Yeongyang-gun Eumsikdimibang Font)
+
+이 프로그램은 영양군이 제공한 '영양군 음식디미방체'를 사용하고 있습니다.
+This program uses 'Yeongyang-gun Eumsikdimibang Font' provided by Yeongyang-gun.
+
+- 라이선스: 공공누리 제1유형
+- License: KOGL Type 1 (Korea Open Government License)
+- 출처 표시 필수 / Attribution required
+- 상업적 이용 가능 / Commercial use allowed
+- 변형 가능 / Modification allowed
+
+## SQLite
+
+SQLite is in the Public Domain.
+For more information, visit: https://www.sqlite.org/copyright.html
+
+## Python
+
+Python is licensed under the PSF License Agreement.
+For full license text, visit: https://docs.python.org/3/license.html
+
+---
+
+Note: This list may not be exhaustive. Some dependencies might have their own licenses. Please check the respective project websites for the most up-to-date licensing information. 

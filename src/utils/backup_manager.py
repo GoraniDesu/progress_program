@@ -78,12 +78,13 @@ class BackupManager:
         except Exception as e:
             return False, f"백업 생성 중 오류가 발생했습니다: {str(e)}"
     
-    def restore_backup(self, backup_filename: str) -> Tuple[bool, str]:
+    def restore_backup(self, backup_filename: str, should_backup: bool = True) -> Tuple[bool, str]:
         """
         백업 복원
         
         Args:
             backup_filename: 복원할 백업 파일 이름
+            should_backup: 현재 데이터 자동 백업 여부 (기본값: True)
             
         Returns:
             (성공 여부, 메시지)
@@ -99,10 +100,11 @@ class BackupManager:
             if not self._verify_database_integrity(backup_path):
                 return False, "백업 파일이 손상되어 복원할 수 없습니다."
             
-            # 현재 데이터베이스 백업 (안전장치)
-            current_backup_result = self.create_backup("before_restore")
-            if not current_backup_result[0]:
-                return False, f"복원 전 현재 데이터 백업 실패: {current_backup_result[1]}"
+            # 현재 데이터베이스 백업 (사용자 선택에 따라)
+            if should_backup:
+                current_backup_result = self.create_backup("before_restore")
+                if not current_backup_result[0]:
+                    return False, f"복원 전 현재 데이터 백업 실패: {current_backup_result[1]}"
             
             # 데이터베이스 복원
             shutil.copy2(backup_path, self.db_path)

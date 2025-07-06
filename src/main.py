@@ -43,8 +43,8 @@ def main():
     
     # 애플리케이션 정보 설정
     app.setApplicationName("Progress Program")
-    app.setApplicationVersion("1.0.0")
-    app.setOrganizationName("Progress Team")
+    app.setApplicationVersion("1.0.1")
+    app.setOrganizationName("GoraniDesu")
     
     # High DPI 지원
     app.setAttribute(Qt.AA_EnableHighDpiScaling, True)

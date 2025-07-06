@@ -35,5 +35,5 @@ changelog/
 
 ---
 
-**문서 관리자**: Progress Team
+**문서 관리자**: pollux (GitHub: [@GoraniDesu](https://github.com/GoraniDesu))
 **최종 업데이트**: 2025년 7월 4일 (통합 개편) 

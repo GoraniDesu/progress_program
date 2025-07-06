@@ -31,19 +31,10 @@ call :log "빌드 이름: %BUILD_NAME%"
 
 :: === [1/3] PyInstaller 준비 ===
 call :section "1/3 PyInstaller 확인"
-where conda > nul 2> nul
-if %errorlevel%==0 (
-    set "PY_CMD=conda run -n %VENV_NAME% python"
-    conda env list | findstr /b /c:"%VENV_NAME%" > nul 2> nul || (
-        call :error "conda 가상환경을 찾을 수 없습니다. 먼저 setup_env.bat 실행 필요"
-        goto :finalize_error
-    )
-) else (
-    set "PY_CMD=%PY_EXE%"
-    if not exist "%PY_EXE%" (
-        call :error "venv 가상환경을 찾을 수 없습니다. 먼저 setup_env.bat 실행 필요"
-        goto :finalize_error
-    )
+set "PY_CMD=%PY_EXE%"
+if not exist "%PY_EXE%" (
+    call :error "venv 가상환경을 찾을 수 없습니다. 먼저 setup_env.bat 실행 필요"
+    goto :finalize_error
 )
 
 %PY_CMD% -m pip show pyinstaller > nul 2> nul || (
@@ -62,10 +53,10 @@ call :log "정리 완료"
 
 :: === [3/3] PyInstaller 빌드 ===
 call :section "3/3 PyInstaller 실행"
-set "PYI_OPTS=--noconfirm --clean src/main.py --onedir --name %BUILD_NAME% --windowed"
-set "DATA_OPTS=--add-data \"config;config\" --add-data \"resources;resources\""
+set "PYI_OPTS=--noconfirm --clean src/main.py --onedir --name %BUILD_NAME% --windowed --paths src"
+set "DATA_OPTS=--add-data config;config --add-data resources;resources"
 set "ICON_OPT="
-if exist "%ICON_FILE%" set "ICON_OPT=--icon \"%ICON_FILE%\""
+if exist "%ICON_FILE%" set "ICON_OPT=--icon %ICON_FILE%"
 
 %PY_CMD% -m PyInstaller %PYI_OPTS% %DATA_OPTS% %ICON_OPT% || (
     call :error "PyInstaller 빌드 실패"
@@ -75,7 +66,7 @@ if exist "%ICON_FILE%" set "ICON_OPT=--icon \"%ICON_FILE%\""
 call :section "완료"
 call :log "출력 폴더: dist\%BUILD_NAME%"
 set "EXIT_CODE=0"
- goto :finalize
+goto :finalize
 
 :: ------------------------------------------------------------
 :: Helper 함수

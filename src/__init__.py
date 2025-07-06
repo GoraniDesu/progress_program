@@ -2,5 +2,5 @@
 Progress Program 소스 패키지
 """
 
-__version__ = "0.3.0"
-__author__ = "Progress Team" 
+__version__ = "1.0.1"
+__author__ = "pollux (GoraniDesu)" 
