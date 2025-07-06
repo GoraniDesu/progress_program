@@ -26,7 +26,9 @@ class BackupWorker(QThread):
             if self.operation == 'create':
                 result = self.backup_manager.create_backup(*self.args)
             elif self.operation == 'restore':
-                result = self.backup_manager.restore_backup(*self.args)
+                filename = self.args[0]
+                should_backup = self.args[1] if len(self.args) > 1 else True
+                result = self.backup_manager.restore_backup(filename, should_backup)
             elif self.operation == 'delete':
                 result = self.backup_manager.delete_backup(*self.args)
             else:
@@ -203,18 +205,28 @@ class BackupDialog(QDialog):
             QMessageBox.warning(self, "경고", "올바른 백업을 선택해주세요.")
             return
         
-        reply = QMessageBox.question(
+        # 현재 데이터 자동 백업 여부 확인
+        backup_reply = QMessageBox.question(
+            self, "현재 데이터 백업",
+            "복원하기 전에 현재 데이터를 백업하시겠습니까?\n\n백업하는 경우, 백업파일 이름은 (before_restore) 으로 저장됩니다.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes  # 기본값은 '예'
+        )
+        
+        # 복원 진행 여부 확인
+        restore_reply = QMessageBox.question(
             self, "백업 복원 확인",
-            f"정말로 '{filename}' 백업으로 복원하시겠습니까?\n\n"
-            "현재 데이터는 자동으로 백업된 후 선택한 백업으로 교체됩니다.",
+            f"정말로 '{filename}' 백업으로 복원하시겠습니까?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         
-        if reply == QMessageBox.Yes:
+        if restore_reply == QMessageBox.Yes:
             self.show_progress("백업을 복원하고 있습니다...")
             
-            self.worker = BackupWorker(self.backup_manager, 'restore', filename)
+            # 자동 백업 여부를 함께 전달
+            should_backup = backup_reply == QMessageBox.Yes
+            self.worker = BackupWorker(self.backup_manager, 'restore', filename, should_backup)
             self.worker.finished.connect(self.on_restore_finished)
             self.worker.start()
     

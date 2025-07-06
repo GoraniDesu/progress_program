@@ -126,6 +126,8 @@ class MainWindow(QMainWindow):
         self.project_list = QListWidget()
         self.project_list.itemClicked.connect(self.on_project_selected)
         self.project_list.currentItemChanged.connect(lambda _new, _old: self.on_project_selected(self.project_list.currentItem()))
+        self.project_list.setMinimumWidth(250)  # 최소 너비 설정
+        self.project_list.setWordWrap(True)  # 긴 텍스트 자동 줄바꿈
         layout.addWidget(self.project_list)
         
         return panel
@@ -354,11 +356,8 @@ class MainWindow(QMainWindow):
             project_status_info = status_manager.get_project_status_summary(project, tasks)
             status_icon = project_status_info['icon']
             
-            # 제목이 길 경우 말줄임 표시
-            metrics = QFontMetrics(self.project_list.font())
-            short_title = metrics.elidedText(project.title, Qt.ElideRight, 28)
-
-            item_text = f"{status_icon} {short_title}\n📊 {progress:.0f}% ({stats['completed']}/{stats['total']})"
+            # 전체 제목 표시
+            item_text = f"{status_icon} {project.title}\n📊 {progress:.0f}% ({stats['completed']}/{stats['total']})"
             
             # 완료(100%) 시 축하 메시지 추가
             if progress >= 100:  # 100% 달성
@@ -588,10 +587,15 @@ class MainWindow(QMainWindow):
 
     def on_project_updated(self):
         """프로젝트 업데이트 이벤트"""
-        # 프로젝트 목록 새로고침
-        self.load_projects()
-        # 현재 프로젝트 정보 업데이트
-        self.update_project_info()
+        if self.current_project:
+            current_project_id = self.current_project.id
+            # 프로젝트 목록 새로고침
+            self.load_projects()
+            # 현재 프로젝트 선택 상태 복원
+            self.select_project_by_id(current_project_id)
+        else:
+            # 선택된 프로젝트가 없는 경우 단순 새로고침
+            self.load_projects()
 
     def select_project_by_id(self, project_id: int):
         """ID로 프로젝트 선택"""
