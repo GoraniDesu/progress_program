@@ -1,6 +1,6 @@
 """
-Progress Program 소스 패키지
+Progress Program
 """
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 __author__ = "pollux (GoraniDesu)" 

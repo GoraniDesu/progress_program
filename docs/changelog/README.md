@@ -36,4 +36,4 @@ changelog/
 ---
 
 **문서 관리자**: pollux (GitHub: [@GoraniDesu](https://github.com/GoraniDesu))
-**최종 업데이트**: 2025년 7월 4일 (통합 개편) 
+**최종 업데이트**: 2025년 7월 7일 (v1.1.0 릴리스) 

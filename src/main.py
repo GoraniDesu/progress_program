@@ -41,9 +41,9 @@ def main():
     # 애플리케이션 생성
     app = QApplication(sys.argv)
     
-    # 애플리케이션 정보 설정
+    # 애플리케이션 기본 정보 설정
     app.setApplicationName("Progress Program")
-    app.setApplicationVersion("1.0.1")
+    app.setApplicationVersion("1.1.0")
     app.setOrganizationName("GoraniDesu")
     
     # High DPI 지원

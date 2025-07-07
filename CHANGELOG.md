@@ -5,6 +5,21 @@ Progress Program의 모든 주목할 만한 변경사항이 이 파일에 기록
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-07-07
+### Added
+- 노트 저장 버튼(💾) 추가
+- 프로젝트 전환 시 저장되지 않은 노트 내용 저장 확인 기능
+
+### Changed
+- 타임스탬프 표시를 "노트 추가" 버튼 사용 시에만 적용
+- 저장 버튼(💾)으로 저장 시 타임스탬프 없이 내용만 저장
+- 노트 저장 방식을 덮어쓰기 방식으로 변경 (이전: 누적 방식)
+
+### Fixed
+- 프로젝트 전환 시 작성 중인 노트 내용이 사라지는 문제 해결
+- 동일한 내용 중복 저장 방지
+- 빈 내용 저장 시 기존 노트 자동 삭제 처리
+
 ## [1.0.1] - 2025-07-06
 ### Fixed
 - 프로젝트 내용 수정 후 다른 프로젝트로 자동 전환되던 문제 수정
@@ -104,7 +119,8 @@ Progress Program의 모든 주목할 만한 변경사항이 이 파일에 기록
 - 노트 기능
 - SQLite 기반 데이터 저장
 
-[Unreleased]: https://github.com/GoraniDesu/progress_program/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/GoraniDesu/progress_program/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/GoraniDesu/progress_program/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/GoraniDesu/progress_program/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/GoraniDesu/progress_program/compare/v0.5.2...v1.0.0
 [0.5.2]: https://github.com/GoraniDesu/progress_program/compare/v0.5.0...v0.5.2
